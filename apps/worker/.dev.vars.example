@@ -1,0 +1,3 @@
+FIREBASE_PROJECT_ID=your-project-id
+IMPERSONATION_SECRET=your-long-random-secret
+PUBLIC_JWK_CACHE_KEY=firebase-jwk-cache
