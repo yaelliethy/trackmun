@@ -1,0 +1,66 @@
+# Development environment variables for TrackMUN Worker
+# Copy this file to .dev.vars and fill in the values
+# NEVER commit .dev.vars to git - it contains secrets
+
+# ===========================================
+# JWT Configuration
+# ===========================================
+# Generate a secure random string for JWT signing
+# Use: openssl rand -hex 32
+JWT_SECRET="your-super-secret-jwt-key-min-32-chars"
+
+# ===========================================
+# Brevo Email Configuration
+# ===========================================
+# Get your API key from https://app.brevo.com/settings/keys/api
+# Format: xkeysib-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+BREVO_API_KEY="xkeysib-your-brevo-api-key"
+
+# Sender configuration (must be verified in Brevo dashboard)
+BREVO_SENDER_EMAIL="noreply@yourconference.org"
+BREVO_SENDER_NAME="TrackMUN Conference"
+
+# ===========================================
+# Brevo Template IDs
+# ===========================================
+# Create these templates in Brevo dashboard (Transactional Emails > Templates)
+# Use the template IDs from the URL or API response
+
+# Welcome email template
+# Variables: NAME, QR_LINK, CONFERENCE_NAME
+BREVO_WELCOME_TEMPLATE_ID="1"
+
+# QR reminder template
+# Variables: NAME, DAYS_LEFT, CONFERENCE_NAME
+BREVO_QR_REMINDER_TEMPLATE_ID="2"
+
+# Password reset template
+# Variables: NAME, RESET_LINK
+BREVO_PASSWORD_RESET_TEMPLATE_ID="3"
+
+# ===========================================
+# QR Code Configuration
+# ===========================================
+# Secret for signing QR codes (HMAC-SHA256)
+# Use: openssl rand -hex 32
+QR_SECRET="your-qr-secret-key-min-32-chars"
+
+# ===========================================
+# Frontend URL
+# ===========================================
+# URL of the frontend application for generating links
+FRONTEND_URL="http://localhost:5173"
+
+# ===========================================
+# Notes
+# ===========================================
+# 1. After creating this file, run:
+#    cp .dev.vars.example .dev.vars
+#    Then edit .dev.vars with your actual values
+#
+# 2. For production, set secrets via:
+#    wrangler secret put JWT_SECRET
+#    wrangler secret put BREVO_API_KEY
+#    wrangler secret put QR_SECRET
+#
+# 3. Verify your sender domain in Brevo dashboard before sending emails

@@ -6,15 +6,20 @@
   "scripts": {
     "dev": "wrangler dev src/index.ts",
     "deploy": "wrangler deploy src/index.ts",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "hono": "^4.0.0",
-    "@trackmun/shared": "workspace:*"
+    "@trackmun/shared": "workspace:*",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240000.0",
     "wrangler": "^3.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^1.2.0",
+    "@cloudflare/vitest-pool-workers": "^0.1.0"
   }
 }
