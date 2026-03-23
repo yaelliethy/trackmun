@@ -111,7 +111,7 @@ CREATE TABLE qr_tokens (
 - `GET /profile` — return full delegate profile
 - `PATCH /profile` — update name, year (email changes require re-verification, skip for now)
 - `POST /profile/qr` — generate signed QR token (one per purpose per user), return token string
-- Email integration: use **Resend** (has a free tier, REST API, works fine from Workers). Send welcome email on registration with QR code embedded as a link
+- Email integration: use **Brevo** (300 emails/day free tier, transactional email API). Send welcome email on registration with QR code embedded as a link
 - `GET /profile/qr` — return current active QR token (regenerate if expired)
 - Input validation with **Zod** (share schemas between `apps/worker` and `apps/web`)
 
@@ -478,7 +478,7 @@ Manual approval → deploy to production
 - [ ] All Worker secrets set in Cloudflare dashboard (not in code)
 - [ ] Custom domain configured for Worker
 - [ ] R2 CORS policy set (allow PUT from frontend origin for presigned uploads)
-- [ ] Resend sending domain verified
+- [ ] Brevo sender domain verified
 - [ ] Rate limits tested under load (use `k6` for a quick load test)
 - [ ] Admin account created with strong password
 
@@ -495,7 +495,7 @@ Manual approval → deploy to production
 
 **Offline QR scanning**: Use a Service Worker on the scan page. Cache the HMAC verification logic and a recent snapshot of valid tokens. Sync when connectivity returns. Complexity is high — only worth it if the venue has poor wifi.
 
-**Bulk import**: Admin CSV upload to bulk-create delegate accounts. Worker parses CSV, validates rows with Zod, creates users in a single D1 batch transaction, sends welcome emails via Resend batch API.
+**Bulk import**: Admin CSV upload to bulk-create delegate accounts. Worker parses CSV, validates rows with Zod, creates users in a single D1 batch transaction, sends welcome emails via Brevo transactional API.
 
 ---
 
