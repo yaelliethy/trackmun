@@ -21,7 +21,8 @@
     "zod": "^3.22.0",
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.0",
-    "@trackmun/shared": "workspace:*"
+    "@trackmun/shared": "workspace:*",
+    "firebase": "^11.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
