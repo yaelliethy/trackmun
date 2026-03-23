@@ -49,17 +49,9 @@
 CREATE TABLE users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
   name TEXT NOT NULL,
   role TEXT NOT NULL CHECK(role IN ('delegate','oc','chair','admin')),
   council TEXT,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-
-CREATE TABLE sessions (
-  token TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id),
-  expires_at INTEGER NOT NULL,
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
@@ -72,17 +64,16 @@ CREATE TABLE impersonation_log (
 );
 ```
 
-**Auth strategy**: Use short-lived JWTs (1 hour) + refresh tokens stored in D1 `sessions` table. Sign with `crypto.subtle` (available in Workers, no libraries needed). **Do not use third-party auth services** — you need admin impersonation, which requires owning the token lifecycle.
+**Auth strategy**: Use **Firebase Auth** for identity. Frontend signs in with Firebase and sends an ID Token (RS256 JWT) in the `Authorization` header. The Worker verifies this token using `@hono/firebase-auth` middleware. User roles and councils are stored in D1 and synced via `POST /auth/sync`.
 
 **Technical tasks**:
-- Build router using **Hono** (best-in-class for Workers — typed middleware, zero deps)
-- `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`
-- JWT signing and verification via `crypto.subtle` (HMAC-SHA256, store secret in Worker secret)
-- RBAC middleware: `requireRole(...roles)` — attach to every protected route
-- `GET /me` — returns current user (used by frontend everywhere)
-- Admin impersonation: `POST /admin/impersonate/:userId` sets a secondary JWT claim `acting_as`; `POST /admin/unimpersonate` clears it. All impersonated actions write to `impersonation_log`
+- Build router using **Hono**
+- `POST /auth/sync` — sync Firebase user to D1, assign default role
+- `GET /me` — returns current user with role/council from D1
+- RBAC middleware: `requireRole(...roles)` — attach to protected routes
+- Admin impersonation: `POST /admin/impersonate/:userId` signs a custom HMAC JWT; `POST /admin/unimpersonate` clears it. All impersonated actions write to `impersonation_log`
 - Error handling middleware with consistent JSON error format: `{ error: string, code: string }`
-- Environment validation (fail fast if secrets missing)
+- Environment validation (Firebase Project ID, Impersonation Secret, KV for JWK cache)
 
 **Critical path task**: The `requireRole` middleware. Everything in Phases 2–5 calls it.
 

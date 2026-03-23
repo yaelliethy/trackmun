@@ -42,7 +42,7 @@ The backend is organized into focused service modules:
 
 | Service     | Responsibility                                      |
 |-------------|-----------------------------------------------------|
-| `auth`      | JWT issuance, session management, role enforcement  |
+| `auth`      | Firebase identity sync, role enforcement, impersonation |
 | `delegates` | Registration, profile management, QR code issuance  |
 | `qr`        | QR code signing, validation, replay protection      |
 | `oc`        | Attendance scanning, benefit tracking               |
@@ -160,18 +160,20 @@ frontend/src/
 ### Authorization
 
 - Every protected route must check the caller's role **explicitly**.
-- Do not assume a valid JWT implies sufficient permissions. Check the role claim.
+- Identity is managed by **Firebase Auth**. Workers verify Firebase ID tokens using the `@hono/firebase-auth` middleware.
+- Do not assume a valid Firebase token implies sufficient permissions. Check the role claim from the D1 `users` table.
 - Role hierarchy: `admin > chair > oc > delegate > guest`.
-- Admins may impersonate any account. Log all impersonation events.
-- Return `401 Unauthorized` for missing/invalid tokens. Return `403 Forbidden` for insufficient permissions.
+- Admins may impersonate any account using a Worker-signed HMAC JWT. Log all impersonation events.
+- Return `401 Unauthorized` for missing/invalid tokens. Return `403 Forbidden` for insufficient permissions or unsynced users.
 
 ### Middleware Patterns
 
-- Apply authentication and role checks as composable middleware, not duplicated inline logic.
+- Apply authentication and role checks as composable middleware.
+- `verifyFirebaseAuth` (global) → `withAuth` (D1 user lookup) → `requireRole` (RBAC).
 - Example pattern:
 
 ```typescript
-router.post('/awards', withAuth, withRole('chair'), assignAwardHandler);
+router.post('/awards', withAuth, requireRole('chair'), assignAwardHandler);
 ```
 
 ### Response Format
@@ -245,7 +247,7 @@ Never return raw data without the envelope. Never expose internal error details 
 
 ### General Security
 
-- Never expose signing keys, JWT secrets, or R2 credentials in source code, logs, or responses.
+- Never expose signing keys, Firebase secrets, or R2 credentials in source code, logs, or responses.
 - Do not log QR payloads or tokens in plaintext.
 - Rate-limit scanning endpoints to prevent brute-force attempts.
 
@@ -369,6 +371,7 @@ These patterns are explicitly prohibited. If you encounter them in existing code
 Before submitting any change, verify:
 
 - [ ] TypeScript strict mode passes with no errors
+- [ ] **Unit tests are written for all new business logic and utility functions**
 - [ ] All inputs to Workers are validated
 - [ ] Authorization is enforced on every protected route
 - [ ] New database queries are parameterized and paginated
@@ -379,6 +382,7 @@ Before submitting any change, verify:
 
 ### What Agents Must Never Do
 
+- Submit code without accompanying unit tests for new logic.
 - Modify migration files that have already been applied.
 - Disable TypeScript strict checks or add `@ts-ignore` without a detailed comment.
 - Remove authorization middleware from any route.

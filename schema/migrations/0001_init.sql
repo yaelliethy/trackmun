@@ -2,17 +2,9 @@
 CREATE TABLE users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
   name TEXT NOT NULL,
   role TEXT NOT NULL CHECK(role IN ('delegate','oc','chair','admin')),
   council TEXT,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-
-CREATE TABLE sessions (
-  token TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id),
-  expires_at INTEGER NOT NULL,
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 

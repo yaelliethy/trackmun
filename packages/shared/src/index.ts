@@ -8,7 +8,7 @@ export const UserSchema = z.object({
   email: z.string().email(),
   name: z.string(),
   role: UserRoleSchema,
-  council: z.string().optional(),
+  council: z.string().optional().nullable(),
   created_at: z.number(),
 });
 
@@ -29,3 +29,12 @@ export const ApiResponseSchema = z.discriminatedUnion('success', [
 export type ApiResponse<T = any> = 
   | { success: true; data: T }
   | { success: false; error: string; code?: string };
+
+// Auth specific schemas
+export const AuthSyncSchema = z.object({
+  name: z.string().min(1),
+});
+
+export const ImpersonateResponseSchema = z.object({
+  token: z.string(),
+});

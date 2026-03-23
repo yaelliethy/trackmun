@@ -1,16 +1,22 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { verifyFirebaseAuth } from '@hono/firebase-auth';
+import { Bindings } from './types/env';
+import { AuthContext } from './middleware/auth';
+import authRoutes from './routes/auth';
 import { ApiResponse } from '@trackmun/shared';
 
-type Bindings = {
-  DB: D1Database;
-  MEDIA: R2Bucket;
-  JWT_SECRET: string;
-};
-
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<{ Bindings: Bindings; Variables: AuthContext }>();
 
 app.use('*', cors());
+
+// Apply Firebase Auth globally
+app.use('*', async (c, next) => {
+  const middleware = verifyFirebaseAuth({
+    projectId: c.env.FIREBASE_PROJECT_ID,
+  });
+  return middleware(c, next);
+});
 
 app.get('/', (c) => {
   return c.json<ApiResponse<string>>({
@@ -19,13 +25,7 @@ app.get('/', (c) => {
   });
 });
 
-app.get('/me', (c) => {
-  // Placeholder for auth middleware
-  return c.json<ApiResponse<null>>({
-    success: false,
-    error: 'Unauthorized',
-    code: 'UNAUTHORIZED',
-  }, 401);
-});
+// Register routes
+app.route('/auth', authRoutes);
 
 export default app;
