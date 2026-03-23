@@ -13,6 +13,10 @@
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@trackmun/shared": ["../../packages/shared/src/index.ts"]
+    },
     "types": ["@cloudflare/workers-types", "vitest/globals"]
   },
   "include": ["src/**/*"],
