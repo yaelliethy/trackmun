@@ -5,7 +5,8 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
-    "type-check": "pnpm -r type-check"
+    "type-check": "pnpm -r type-check",
+    "deploy:worker": "pnpm --filter @trackmun/worker run deploy"
   },
   "devDependencies": {
     "typescript": "^5.3.0",
