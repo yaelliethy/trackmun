@@ -15,10 +15,11 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@trackmun/shared": ["../../packages/shared/src/index.ts"]
+      "@trackmun/shared": ["../../packages/shared/src/index.ts"],
+      "#src/*": ["./src/*"]
     },
     "types": ["@cloudflare/workers-types", "vitest/globals"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules"]
 }

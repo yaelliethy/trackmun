@@ -56,8 +56,14 @@ export class EmailService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch((): { message: string } => ({ message: 'Unknown error' })) as { message: string };
-      throw new Error(`Brevo API error (${response.status}): ${errorData.message}`);
+      const errorData = (await response
+        .json()
+        .catch((): Record<string, unknown> => ({}))) as { message?: string };
+      const message =
+        typeof errorData.message === 'string' && errorData.message.trim() !== ''
+          ? errorData.message
+          : 'Unknown error';
+      throw new Error(`Brevo API error (${response.status}): ${message}`);
     }
 
     return response.json<BrevoSendResponse>();

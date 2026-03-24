@@ -30,41 +30,12 @@ export type ApiResponse<T = any> =
   | { success: true; data: T }
   | { success: false; error: string; code?: string };
 
-// Auth specific schemas
-export const AuthSyncSchema = z.object({
-  name: z.string().min(1),
-});
-
 export const ImpersonateResponseSchema = z.object({
   token: z.string(),
 });
-/**
- * Auth-related schemas for request validation
- */
-export const RegisterRequestSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  name: z.string().min(1, 'Name is required'),
-  council: z.string().optional(),
+
+export const UpdateUserSchema = z.object({
+  name: z.string().min(1).optional(),
+  council: z.string().nullable().optional(),
+  role: UserRoleSchema.optional(),
 });
-
-export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
-
-export const LoginRequestSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
-});
-
-export type LoginRequest = z.infer<typeof LoginRequestSchema>;
-
-export const AuthResponseSchema = z.object({
-  token: z.string(),
-  user: z.object({
-    id: z.string(),
-    email: z.string().email(),
-    name: z.string(),
-    role: UserRoleSchema,
-  }),
-});
-
-export type AuthResponse = z.infer<typeof AuthResponseSchema>;

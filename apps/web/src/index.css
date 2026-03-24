@@ -2,10 +2,97 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --primary: #04316c;
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222.2 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47% 11%;
+
+    /* Brand Primary: #04316c -> HSL(214, 93%, 22%) */
+    --primary: 214 93% 22%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 214 32% 94%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 214 28% 94%;
+    --muted-foreground: 215 16% 42%;
+
+    --accent: 214 40% 96%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 26 83% 14%;
+
+    --success: 142 71% 36%;
+    --success-foreground: 144 61% 98%;
+
+    --border: 214 24% 88%;
+    --input: 214 24% 88%;
+    --ring: 214 93% 22%;
+
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 222.2 47% 11%;
+    --sidebar-border: 214 24% 90%;
+
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 89%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 144 61% 98%;
+
+    --sidebar: 222.2 47% 8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+  }
 }
 
-body {
-  @apply bg-background text-foreground antialiased;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
 }

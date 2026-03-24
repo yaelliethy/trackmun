@@ -22,10 +22,12 @@ This is a full-stack Model United Nations (MUN) platform built entirely on Cloud
 
 ```
 /
-├── frontend/          # React + HeroUI application
-├── workers/           # Cloudflare Workers (API backend)
-├── schema/            # D1 SQL migrations and schema definitions
-└── docs/              # Architecture decisions and references
+├── apps/
+│ ├── web/ # React + shadcn/ui application (frontend)
+│ └── worker/ # Cloudflare Workers (API backend)
+├── packages/
+│ └── shared/ # Shared TypeScript types and Zod schemas
+└── schema/ # D1 SQL migrations (aliased to apps/worker/migrations)
 ```
 
 ### Core Principles
@@ -40,16 +42,16 @@ This is a full-stack Model United Nations (MUN) platform built entirely on Cloud
 
 The backend is organized into focused service modules:
 
-| Service     | Responsibility                                      |
+| Service | Responsibility |
 |-------------|-----------------------------------------------------|
-| `auth`      | Firebase identity sync, role enforcement, impersonation |
-| `delegates` | Registration, profile management, QR code issuance  |
-| `qr`        | QR code signing, validation, replay protection      |
-| `oc`        | Attendance scanning, benefit tracking               |
-| `chairs`    | Country assignment, award management                |
-| `admin`     | Impersonation, full platform control                |
-| `press`     | Social feed, posts, likes, replies, media           |
-| `upload`    | Presigned URL generation for R2                     |
+| `auth` | **Better Auth** (email/password, sessions, JWT plugin); EdDSA access JWTs with JWKS in D1 (`jwkss`); roles from D1 `users`; admin **impersonation** (HMAC JWT, see §5) |
+| `delegates` | Registration, profile management, QR code issuance |
+| `qr` | QR code signing, validation, replay protection |
+| `oc` | Attendance scanning, benefit tracking |
+| `chairs` | Country assignment, award management |
+| `admin` | Admin/setup routes, user management, platform control (impersonation tokens are issued via auth; see §5) |
+| `press` | Social feed, posts, likes, replies, media |
+| `upload` | Presigned URL generation for R2 |
 
 Agents must respect this service boundary. Do not create cross-service dependencies without explicit justification.
 
@@ -65,14 +67,14 @@ Agents must respect this service boundary. Do not create cross-service dependenc
 
 ### Naming Conventions
 
-| Construct         | Convention          | Example                        |
+| Construct | Convention | Example |
 |-------------------|---------------------|--------------------------------|
-| Variables         | `camelCase`         | `delegateId`, `isVerified`     |
-| Functions         | `camelCase`         | `getDelegate()`, `signQRCode()`|
-| Types / Interfaces| `PascalCase`        | `DelegateProfile`, `QRPayload` |
-| Constants         | `UPPER_SNAKE_CASE`  | `MAX_MEDIA_ITEMS`, `JWT_TTL`   |
-| Files             | `kebab-case`        | `delegate-router.ts`           |
-| Database tables   | `snake_case`        | `delegate_profiles`, `press_posts` |
+| Variables | `camelCase` | `delegateId`, `isVerified` |
+| Functions | `camelCase` | `getDelegate()`, `signQRCode()`|
+| Types / Interfaces| `PascalCase` | `DelegateProfile`, `QRPayload` |
+| Constants | `UPPER_SNAKE_CASE` | `MAX_MEDIA_ITEMS`, `JWT_TTL` |
+| Files | `kebab-case` | `delegate-router.ts` |
+| Database tables | `snake_case` | `delegate_profiles`, `press_posts` |
 
 ### Function Design
 
@@ -96,29 +98,30 @@ Agents must respect this service boundary. Do not create cross-service dependenc
 ### Framework & Components
 
 - Use **React** with functional components and hooks only. No class components.
-- Use **HeroUI** as the primary component library. Do not introduce other component libraries without justification.
+- Use **shadcn/ui** as the primary component library. Components are located in `src/components/ui/`.
 - Build reusable, composable components. A component should do one thing well.
-- Keep components in logically named directories under `frontend/src/components/`.
+- Keep components in logically named directories under `apps/web/src/components/`.
+- **Follow the [Design & UX Philosophy](#design--ux-philosophy)** to ensure a consistent and premium user experience.
 
 ### Design System
 
 The platform uses a strict two-color primary palette:
 
-| Role            | Value     |
+| Role | Value |
 |-----------------|-----------|
-| Primary         | `#04316c` |
-| Primary Text    | `#ffffff`  |
-| Surface / Base  | `#ffffff`  |
-| Neutral accents | Derived from HeroUI's default scale |
+| Primary | `#04316c` (HSL: `214 93% 22%`) |
+| Primary Text | `#ffffff` |
+| Surface / Base | `#ffffff` |
+| Neutral accents | Derived from Tailwind's default scale |
 
-- Always use design tokens or HeroUI's theming system. **Do not hardcode color hex values in component files.**
+- Always use design tokens or shadcn/ui's CSS variables. **Do not hardcode color hex values in component files.**
 - Follow a **mobile-first** responsive design approach. Design for small screens first, then enhance for larger viewports.
-- Maintain consistent spacing using HeroUI's spacing scale. Do not introduce arbitrary pixel values.
+- Maintain consistent spacing using Tailwind's spacing scale. Do not introduce arbitrary pixel values.
 - Typography must be consistent. Use the type scale defined in the theme — do not set arbitrary font sizes inline.
 
 ### Component Rules
 
-- **No inline styles.** Use HeroUI's `className` prop with Tailwind utility classes or the theme system.
+- **No inline styles.** Use Tailwind utility classes or the theme system.
 - Every component that fetches data must handle three states explicitly: **loading**, **error**, and **success**.
 - Forms must display validation errors clearly and accessibly.
 - Interactive elements must have accessible labels (`aria-label`, `aria-describedby`) where visual context alone is insufficient.
@@ -127,17 +130,18 @@ The platform uses a strict two-color primary palette:
 ### File Organization
 
 ```
-frontend/src/
-├── components/        # Reusable UI components
-│   ├── common/        # Buttons, cards, modals, shared elements
-│   ├── delegates/
-│   ├── press/
-│   └── ...
-├── pages/             # Route-level page components
-├── hooks/             # Custom React hooks
-├── services/          # API client functions (typed fetch wrappers)
-├── types/             # Shared TypeScript types
-└── utils/             # Pure utility functions
+apps/web/src/
+├── components/ # Reusable UI components
+│ ├── ui/ # shadcn/ui base components
+│ ├── common/ # Shared elements
+│ ├── delegates/
+│ ├── press/
+│ └── ...
+├── pages/ # Route-level page components
+├── hooks/ # Custom React hooks
+├── services/ # API client functions (typed fetch wrappers)
+├── types/ # Shared TypeScript types
+└── utils/ # Pure utility functions
 ```
 
 ---
@@ -147,8 +151,88 @@ frontend/src/
 ### Handler Design
 
 - Each Worker handles a **single domain** (e.g., `delegates-worker`, `press-worker`).
+- Follow a strict **MVC (Model-View-Controller)** pattern for backend logic:
+ - **Routes**: Define endpoints and OpenAPI specifications (thin layer).
+ - **Controllers**: Handle request/response orchestration (parse input → call service → return JSON).
+ - **Services**: Contain business logic and database operations (stateless).
 - Route handlers must be **small and focused**. Extract business logic into service functions; keep handlers as thin orchestrators.
 - A handler's responsibility: parse the request → validate → authorize → call service → return response.
+
+### File Organization (Worker)
+
+```
+apps/worker/src/
+├── index.ts # Entry point & global middleware
+├── controllers/ # Domain-specific controllers
+├── services/ # Business logic & DB operations
+├── routes/ # OpenAPI route definitions
+├── middleware/ # Custom Hono middleware (auth, rbac)
+├── lib/ # Shared helpers (e.g. better-auth factory, JWT verification)
+├── db/ # Drizzle schema & D1 client (initializeDb, getDb)
+└── types/ # Worker-specific types (env bindings, etc.)
+```
+
+SQL migrations live in **`apps/worker/migrations/`** (versioned files; not under `src/`).
+
+### Unit tests (Worker)
+
+- Worker unit tests live in **`apps/worker/tests/unit/`**, grouped by area (`auth/`, `lib/`, `middleware/`, `services/`, `app/`).
+- Run them with **`pnpm --filter @trackmun/worker test`** (Vitest with **`@cloudflare/vitest-pool-workers`**). Vitest is pinned to a version compatible with that pool package (see `apps/worker/package.json`).
+- Add tests for new business logic and security-sensitive helpers (auth, JWT verification, middleware) in that tree. Import production modules via the **`#src`** alias (see `apps/worker/vitest.config.ts` and `apps/worker/tsconfig.json`).
+
+---
+
+## Branding & Customization
+
+This is an open-source project. All visual identity is controlled from a **single file** that deployers edit once.
+
+### `apps/web/brand.config.ts`
+
+Deployers edit this file to change the app's visual identity:
+
+```typescript
+export default {
+ appName: 'TrackMUN',
+ logoPath: '/logo.svg', // path relative to public/
+ primary: '#04316c', // Hex color for primary brand color
+ primaryForeground: '#ffffff', // Hex color for text on primary background
+};
+```
+
+### How to Rebrand
+
+1. **Colors & Name**: Edit `apps/web/brand.config.ts`. The `primary` color is automatically injected into the Tailwind theme via CSS variables in `index.css`.
+2. **Logo**: Replace `apps/web/public/logo.svg` with your own logo asset.
+3. **Runtime Access**: Components should import branding info from `@/config/brand` (which re-exports the config) to ensure consistency.
+
+---
+
+## Design & UX Philosophy
+
+To ensure TrackMUN remains a premium, professional platform and avoids "AI slop" (generic, uninspired layouts), all agents must adhere to these design principles.
+
+### 1. Visual Hierarchy & Spacing
+- **Whitespace is a feature**: Never crowd elements. Use generous padding (`p-6` or `p-8`) for main containers.
+- **Contrast & Typography**: Use font weights and sizes to create a clear hierarchy. Titles must be bold and distinct from body text.
+- **Consistent Spacing**: Always use Tailwind's standard scale (e.g., `gap-4`, `gap-6`, `space-y-4`). **Never** use arbitrary pixel values for spacing.
+
+### 2. Component Usage (shadcn/ui)
+- **Cards**: Group primary data and sections in `Card` components. Maintain subtle borders and consistent padding. Avoid flat, borderless layouts for data-heavy views.
+- **Buttons**: Use `variant="default"` for the main call-to-action. Use `variant="outline"` or `variant="ghost"` for secondary actions to maintain visual balance.
+- **Inputs**: Always use shadcn `Input` with clear, descriptive `Label`s. Never use unstyled HTML inputs.
+- **Feedback & Loading**: Use `Skeleton` for loading states to prevent layout shift. Use `Badge` for status indicators (e.g., "Active", "Pending", "Success") with appropriate semantic variants.
+
+### 3. "Anti-Slop" Principles
+- **Meaningful Iconography**: Use icons from `lucide-react` that match the semantic context. Avoid generic or repetitive icons.
+- **Intentional Empty States**: Never show a blank screen when data is missing. Design beautiful empty states with a relevant icon, a clear explanatory message, and a primary action button to guide the user.
+- **Subtle Motion**: Use `framer-motion` for entry animations or layout transitions. Keep animations fast (200-300ms) and purposeful; avoid "distracting" or "bouncy" effects.
+- **Responsive by Default**: Mobile-first design is mandatory. Every layout must be tested and optimized for `sm`, `md`, and `lg` breakpoints.
+
+### 4. Color & Branding
+- **Semantic Tokens**: Stick to the theme palette (`primary`, `secondary`, `success`, `warning`, `destructive`).
+- **Brand Consistency**: Always import branding details (app name, logo) from `@/config/brand`. Never hardcode these strings in components.
+
+---
 
 ### Input Validation
 
@@ -160,16 +244,19 @@ frontend/src/
 ### Authorization
 
 - Every protected route must check the caller's role **explicitly**.
-- Identity is managed by **Firebase Auth**. Workers verify Firebase ID tokens using the `@hono/firebase-auth` middleware.
-- Do not assume a valid Firebase token implies sufficient permissions. Check the role claim from the D1 `users` table.
-- Role hierarchy: `admin > chair > oc > delegate > guest`.
-- Admins may impersonate any account using a Worker-signed HMAC JWT. Log all impersonation events.
-- Return `401 Unauthorized` for missing/invalid tokens. Return `403 Forbidden` for insufficient permissions or unsynced users.
+- **Identity** is managed by **[Better Auth](https://www.better-auth.com/)** on the Worker (`apps/worker/src/lib/auth.ts`): email/password, sessions, and a **JWT plugin**. The client sends **`Authorization: Bearer <access_token>`** on API calls.
+- **Access JWT verification** (non-impersonation): verify the token with **EdDSA** using the matching **public JWK** row in D1 (`jwkss`, keyed by JWT header `kid`). Implementation: `apps/worker/src/lib/verify-better-auth-jwt.ts`, used from `withAuth`.
+- **Authorization (roles)** always comes from the **D1 `users` row** for the subject (`sub` / user id). Do **not** trust JWT custom claims alone for RBAC; load the user from D1 after verification.
+- Role hierarchy: `admin > chair > oc > delegate` (no `guest` in D1 enum today; align product and docs when added).
+- **Impersonation**: admins receive a short-lived **HMAC-SHA256** JWT (`typ: 'impersonation'`, secret `IMPERSONATION_SECRET`) only for targets whose role is **`oc` or `chair`** (see `apps/worker/src/controllers/auth/auth.controller.ts`). Log events in **`impersonation_log`** via `AuthService.logImpersonation`.
+- Required bindings / secrets are declared on **`Bindings`** in `apps/worker/src/types/env.ts` (e.g. `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `IMPERSONATION_SECRET`, `DB`, `MEDIA`). Optional: `ENVIRONMENT` (`production` toggles Better Auth cookie settings in `lib/auth.ts`).
+- Return `401 Unauthorized` for missing/invalid tokens. Return `403 Forbidden` for insufficient permissions or missing D1 user rows.
 
 ### Middleware Patterns
 
-- Apply authentication and role checks as composable middleware.
-- `verifyFirebaseAuth` (global) → `withAuth` (D1 user lookup) → `requireRole` (RBAC).
+- Apply authentication and role checks as **per-route** (or route-group) middleware.
+- **`withAuth`**: parses `Bearer` token → if payload `typ === 'impersonation'`, verify HMAC and load **acting** user from D1; otherwise verify Better Auth access JWT (JWKS) and load user by `sub` from D1. Sets `user`, `isImpersonating`, and optional `adminId` on the context.
+- **`requireRole(...roles)`**: ensures `user.role` is one of the allowed roles.
 - Example pattern:
 
 ```typescript
@@ -210,9 +297,134 @@ Never return raw data without the envelope. Never expose internal error details 
 
 ### Migrations
 
-- All schema changes must be written as versioned migration files in `schema/migrations/`.
+- All schema changes must be written as versioned migration files in `apps/worker/migrations/`.
 - Migration files are append-only. Never modify an already-applied migration.
 - Migration naming: `0001_create_delegates.sql`, `0002_add_awards_table.sql`.
+
+---
+
+## Drizzle ORM
+
+All database access in the Worker uses **Drizzle ORM** for type-safe, composable queries. Raw SQL strings are eliminated in favor of the Drizzle query builder.
+
+### Installation
+
+Dependencies are declared in `apps/worker/package.json`:
+- `drizzle-orm` — ORM runtime
+- `@libsql/client` — D1 client driver
+- `drizzle-kit` — CLI for migrations and schema management
+
+### File Structure
+
+```
+apps/worker/src/
+├── db/
+│ ├── schema.ts # Table definitions and relations
+│ └── client.ts # Database client initialization (initializeDb, getDb)
+├── lib/
+│ ├── auth.ts # better-auth instance factory
+│ └── verify-better-auth-jwt.ts # Access JWT + JWKS lookup
+├── middleware/
+│ ├── auth.ts # withAuth
+│ └── rbac.ts # requireRole
+├── routes/ # OpenAPI routers (e.g. routes/auth, routes/admin)
+├── controllers/ # Thin handlers
+└── services/
+ ├── admin/ # Admin & setup services
+ └── auth/ # User lookup, impersonation log, impersonation token signing
+```
+
+### Usage Pattern
+
+Services import the database client and query builder:
+
+```typescript
+import { getDb } from '../../db/client';
+import { users, eq } from '../../db/schema';
+
+async function getUserById(id: string) {
+ const db = getDb();
+ const user = await db.select().from(users).where(eq(users.id, id)).get();
+ return user;
+}
+```
+
+### Common Operations
+
+**SELECT (single):**
+```typescript
+const user = await db.select().from(users).where(eq(users.id, id)).get();
+```
+
+**SELECT (multiple with pagination):**
+```typescript
+const results = await db
+ .select()
+ .from(users)
+ .where(eq(users.role, 'delegate'))
+ .limit(20)
+ .offset((page - 1) * 20)
+ .all();
+```
+
+**COUNT:**
+```typescript
+const result = await db.select({ count: count() }).from(users).get();
+```
+
+**INSERT:**
+```typescript
+await db.insert(users).values({
+ id: 'user-123',
+ email: 'user@example.com',
+ name: 'John',
+ role: 'delegate',
+}).run();
+```
+
+**INSERT...ON CONFLICT DO UPDATE:**
+```typescript
+await db
+ .insert(users)
+ .values({ id, email, name, role: 'delegate' })
+ .onConflictDoUpdate({
+ target: users.id,
+ set: { email, name: sql`COALESCE(${users.name}, ${name})` },
+ })
+ .run();
+```
+
+**UPDATE:**
+```typescript
+await db.update(users).set({ name: 'New Name' }).where(eq(users.id, id)).run();
+```
+
+**DELETE:**
+```typescript
+await db.delete(users).where(eq(users.id, id)).run();
+```
+
+### Database Commands
+
+```bash
+# Generate migration files from schema.ts changes
+npm run db:generate
+
+# Apply migrations locally
+npm run db:migrate
+
+# Push schema to D1
+npm run db:push
+```
+
+### Why Drizzle?
+
+1. **Type-safe**: Full TypeScript with compile-time checking
+2. **No SQL injection**: Query builder eliminates string interpolation risk
+3. **Composable**: Build complex queries from simple, reusable pieces
+4. **Relations**: Eager and lazy loading via defined relationships
+5. **Auto-migrations**: Drizzle generates migrations from schema changes
+6. **Parameterization**: Automatic; no manual query parameterization needed
 
 ---
 
@@ -222,9 +434,9 @@ Never return raw data without the envelope. Never expose internal error details 
 - The upload flow is always: client requests presigned URL from Worker → Worker validates request and generates presigned URL → client uploads directly to R2 → client notifies Worker of completion → Worker records the media reference.
 - Presigned URLs must have a **short expiration** (maximum 15 minutes).
 - Workers must validate the following before generating a presigned URL:
-  - User is authenticated and authorized to upload
-  - File type is in the allowed list (e.g., `image/jpeg`, `image/png`, `image/webp`, `video/mp4`)
-  - Declared file size does not exceed the configured maximum
+ - User is authenticated and authorized to upload
+ - File type is in the allowed list (e.g., `image/jpeg`, `image/png`, `image/webp`, `video/mp4`)
+ - Declared file size does not exceed the configured maximum
 - After the client completes the upload, the Worker must verify the object exists in R2 before persisting the reference to D1.
 - R2 object keys must be namespaced by context: `press/{postId}/{filename}`, `delegates/avatars/{delegateId}/{filename}`.
 
@@ -247,7 +459,7 @@ Never return raw data without the envelope. Never expose internal error details 
 
 ### General Security
 
-- Never expose signing keys, Firebase secrets, or R2 credentials in source code, logs, or responses.
+- Never expose signing keys, **Better Auth** / **impersonation** secrets, or R2 credentials in source code, logs, or responses.
 - Do not log QR payloads or tokens in plaintext.
 - Rate-limit scanning endpoints to prevent brute-force attempts.
 
@@ -318,13 +530,13 @@ Never return raw data without the envelope. Never expose internal error details 
 
 ```json
 {
-  "timestamp": "2025-01-15T14:32:00Z",
-  "level": "info",
-  "service": "admin",
-  "action": "impersonate",
-  "actorId": "admin-001",
-  "targetId": "delegate-042",
-  "message": "Admin initiated impersonation"
+ "timestamp": "2025-01-15T14:32:00Z",
+ "level": "info",
+ "service": "admin",
+ "action": "impersonate",
+ "actorId": "admin-001",
+ "targetId": "delegate-042",
+ "message": "Admin initiated impersonation"
 }
 ```
 
@@ -371,7 +583,7 @@ These patterns are explicitly prohibited. If you encounter them in existing code
 Before submitting any change, verify:
 
 - [ ] TypeScript strict mode passes with no errors
-- [ ] **Unit tests are written for all new business logic and utility functions**
+- [ ] **Unit tests are written for all new business logic and utility functions** (place Worker tests under `apps/worker/tests/unit/`, run `pnpm --filter @trackmun/worker test`)
 - [ ] All inputs to Workers are validated
 - [ ] Authorization is enforced on every protected route
 - [ ] New database queries are parameterized and paginated

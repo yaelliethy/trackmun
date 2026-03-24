@@ -1,0 +1,88 @@
+import React, { useState } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { delegatesService } from "../../services/delegates"
+import { UserTable } from "../../components/admin/UserTable"
+import { UserEditModal } from "../../components/admin/UserEditModal"
+import { UserDeleteModal } from "../../components/admin/UserDeleteModal"
+import { User } from "@trackmun/shared"
+import { AdminDataPageLayout } from "../../components/admin/AdminDataPageLayout"
+import { AdminListPagination } from "../../components/admin/AdminListPagination"
+
+const PAGE_SIZE = 20
+
+export const AdminDelegatesPage: React.FC = () => {
+  const [page, setPage] = useState(1)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [deletingUser, setDeletingUser] = useState<User | null>(null)
+
+  const queryClient = useQueryClient()
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["delegates", page],
+    queryFn: () => delegatesService.list(page, PAGE_SIZE),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      data: patch,
+    }: {
+      id: string
+      data: { name?: string; council?: string | null }
+    }) => delegatesService.update(id, patch),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["delegates"] })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => delegatesService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["delegates"] })
+    },
+  })
+
+  const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0
+
+  return (
+    <AdminDataPageLayout
+      title="Delegates"
+      description="Review delegate accounts, committee assignments, and profile details. Edits apply across the platform immediately."
+      breadcrumbCurrent="Delegates"
+      totalCount={data?.total}
+      isLoadingTotal={isLoading}
+      footer={
+        <AdminListPagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
+      }
+    >
+      <UserTable
+        users={data?.users ?? []}
+        isLoading={isLoading}
+        onEdit={setEditingUser}
+        onDelete={setDeletingUser}
+      />
+
+      <UserEditModal
+        user={editingUser}
+        isOpen={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        onSave={async (id, patch) => {
+          await updateMutation.mutateAsync({ id, data: patch })
+        }}
+      />
+
+      <UserDeleteModal
+        user={deletingUser}
+        isOpen={!!deletingUser}
+        onClose={() => setDeletingUser(null)}
+        onConfirm={async (id) => {
+          await deleteMutation.mutateAsync(id)
+        }}
+      />
+    </AdminDataPageLayout>
+  )
+}

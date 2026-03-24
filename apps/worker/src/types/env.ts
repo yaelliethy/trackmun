@@ -1,10 +1,10 @@
-import { VerifyFirebaseAuthEnv } from '@hono/firebase-auth';
-
-export type Bindings = VerifyFirebaseAuthEnv & {
+export type Bindings = {
   DB: D1Database;
   MEDIA: R2Bucket;
-  FIREBASE_PROJECT_ID: string;
+  BETTER_AUTH_SECRET: string;
+  BETTER_AUTH_URL: string;
+  FRONTEND_URL: string;
   IMPERSONATION_SECRET: string;
-  PUBLIC_JWK_CACHE_KEY: string;
-  PUBLIC_JWK_CACHE_KV: KVNamespace;
+  /** When `"production"`, Better Auth uses secure cross-site cookies. */
+  ENVIRONMENT?: string;
 };

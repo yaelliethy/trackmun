@@ -9,6 +9,7 @@
     /* Connection to shared package */
     "baseUrl": ".",
     "paths": {
+      "@/*": ["src/*"],
       "@trackmun/shared": ["../../packages/shared/src/index.ts"]
     },
 

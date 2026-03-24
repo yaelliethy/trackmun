@@ -1,7 +1,10 @@
 import { MiddlewareHandler } from 'hono';
-import { getFirebaseToken } from '@hono/firebase-auth';
 import { Bindings } from '../types/env';
 import { User, UserRole } from '@trackmun/shared';
+import { getDb } from '../db/client';
+import { users } from '../db/schema';
+import { eq } from 'drizzle-orm';
+import { decodeJwtPayloadJson, verifyBetterAuthAccessToken } from '../lib/verify-better-auth-jwt';
 
 export type AuthContext = {
   user: User;
@@ -18,47 +21,50 @@ export const withAuth: MiddlewareHandler<{ Bindings: Bindings; Variables: AuthCo
 
   const [type, token] = authHeader.split(' ');
 
-  // 1. Check for Impersonation Token (HMAC-SHA256)
-  if (type === 'Bearer' && token.split('.').length === 3) {
-    try {
-      // Simple check if it's our custom JWT (impersonation)
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      if (payload.typ === 'impersonation') {
-        const isValid = await verifyImpersonationToken(token, c.env.IMPERSONATION_SECRET);
-        if (isValid) {
-          const user = await fetchUserFromD1(c.env.DB, payload.actingAs);
-          if (user) {
-            c.set('user', user);
-            c.set('isImpersonating', true);
+  if (type !== 'Bearer' || !token) {
+    return c.json({ success: false, error: 'Invalid authorization format', code: 'UNAUTHORIZED' }, 401);
+  }
+
+  const parts = token.split('.');
+
+  // 1. Three-part JWT: impersonation (HMAC) or better-auth access (EdDSA / JWKS)
+  if (parts.length === 3) {
+    const payload = decodeJwtPayloadJson(token);
+
+    if (payload?.typ === 'impersonation') {
+      const isValid = await verifyHmacJwt(token, c.env.IMPERSONATION_SECRET);
+      if (isValid && typeof payload.actingAs === 'string') {
+        const user = await fetchUserFromD1(payload.actingAs);
+        if (user) {
+          c.set('user', user);
+          c.set('isImpersonating', true);
+          if (typeof payload.adminId === 'string') {
             c.set('adminId', payload.adminId);
-            return await next();
           }
+          return await next();
         }
       }
-    } catch (e) {
-      // Fall through to Firebase check if impersonation check fails
+    } else {
+      const baseUrl = c.env.BETTER_AUTH_URL.replace(/\/$/, '');
+      const accessPayload = await verifyBetterAuthAccessToken(token, getDb(), baseUrl, baseUrl);
+      const sub = accessPayload?.sub;
+      if (typeof sub === 'string') {
+        const user = await fetchUserFromD1(sub);
+        if (user) {
+          c.set('user', user);
+          c.set('isImpersonating', false);
+          return await next();
+        }
+      }
     }
   }
 
-  // 2. Fallback to Firebase Token (handled by verifyFirebaseAuth middleware before this)
-  const firebaseToken = getFirebaseToken(c);
-  if (!firebaseToken) {
-    return c.json({ success: false, error: 'Invalid or missing token', code: 'UNAUTHORIZED' }, 401);
-  }
-
-  const user = await fetchUserFromD1(c.env.DB, firebaseToken.uid);
-  if (!user) {
-    return c.json({ success: false, error: 'User not synced with database', code: 'USER_NOT_SYNCED' }, 403);
-  }
-
-  c.set('user', user);
-  c.set('isImpersonating', false);
-  
-  await next();
+  return c.json({ success: false, error: 'Invalid or expired token', code: 'UNAUTHORIZED' }, 401);
 };
 
-async function fetchUserFromD1(db: D1Database, userId: string): Promise<User | null> {
-  const user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first<any>();
+async function fetchUserFromD1(userId: string): Promise<User | null> {
+  const db = getDb();
+  const user = await db.select().from(users).where(eq(users.id, userId)).get();
   if (!user) return null;
   
   return {
@@ -66,12 +72,13 @@ async function fetchUserFromD1(db: D1Database, userId: string): Promise<User | n
     email: user.email,
     name: user.name,
     role: user.role as UserRole,
-    council: user.council,
-    created_at: user.created_at,
+    council: user.council || undefined,
+    created_at:
+      user.createdAt instanceof Date ? user.createdAt.getTime() : user.createdAt,
   };
 }
 
-async function verifyImpersonationToken(token: string, secret: string): Promise<boolean> {
+async function verifyHmacJwt(token: string, secret: string): Promise<boolean> {
   const [header, payload, signature] = token.split('.');
   const data = `${header}.${payload}`;
   
@@ -84,6 +91,8 @@ async function verifyImpersonationToken(token: string, secret: string): Promise<
     ['verify']
   );
   
-  const sigBuf = Uint8Array.from(atob(signature.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+  // Handle both standard and URL-safe base64
+  const normalizedSig = signature.replace(/-/g, '+').replace(/_/g, '/');
+  const sigBuf = Uint8Array.from(atob(normalizedSig), c => c.charCodeAt(0));
   return await crypto.subtle.verify('HMAC', key, sigBuf, encoder.encode(data));
 }
