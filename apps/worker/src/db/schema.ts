@@ -302,3 +302,42 @@ export const jwkss = sqliteTable('jwkss', {
   privateKey: text('private_key').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
+
+// Admin Features
+
+export const benefits = sqliteTable('benefits', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+});
+
+export const conferenceDays = sqliteTable('conference_days', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull().default('Unnamed Day'),
+  date: text('date').notNull(), // e.g. '2026-03-25'
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+});
+
+export const attendancePeriods = sqliteTable('attendance_periods', {
+  id: text('id').primaryKey(),
+  dayId: text('day_id').notNull().references(() => conferenceDays.id, { onDelete: 'cascade' }),
+  startTime: text('start_time').notNull(), // e.g. '09:00'
+  endTime: text('end_time').notNull(), // e.g. '11:00'
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (table) => ({
+  dayIdx: index('idx_attendance_periods_day').on(table.dayId),
+}));
+
+export const conferenceDaysRelations = relations(conferenceDays, ({ many }) => ({
+  periods: many(attendancePeriods),
+}));
+
+export const attendancePeriodsRelations = relations(attendancePeriods, ({ one }) => ({
+  day: one(conferenceDays, {
+    fields: [attendancePeriods.dayId],
+    references: [conferenceDays.id],
+  }),
+}));

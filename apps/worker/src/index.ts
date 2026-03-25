@@ -9,6 +9,9 @@ import delegateRoutes from './routes/admin/delegates';
 import ocRoutes from './routes/admin/oc';
 import chairRoutes from './routes/admin/chairs';
 import setupRoutes from './routes/admin/setup';
+import benefitsRoutes from './routes/admin/benefits';
+import attendanceRoutes from './routes/admin/attendance';
+import adminsRoutes from './routes/admin/admins';
 
 const app = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
 
@@ -87,5 +90,8 @@ app.route('/admin/delegates', delegateRoutes);
 app.route('/admin/oc', ocRoutes);
 app.route('/admin/chairs', chairRoutes);
 app.route('/admin/setup', setupRoutes);
+app.route('/admin/benefits', benefitsRoutes);
+app.route('/admin/attendance', attendanceRoutes);
+app.route('/admin/admins', adminsRoutes);
 
 export default app;

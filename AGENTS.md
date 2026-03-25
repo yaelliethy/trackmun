@@ -52,6 +52,7 @@ The backend is organized into focused service modules:
 | `admin` | Admin/setup routes, user management, platform control (impersonation tokens are issued via auth; see §5) |
 | `press` | Social feed, posts, likes, replies, media |
 | `upload` | Presigned URL generation for R2 |
+| `email` | Transactional email delivery (e.g., verification, notifications) |
 
 Agents must respect this service boundary. Do not create cross-service dependencies without explicit justification.
 
@@ -123,9 +124,10 @@ The platform uses a strict two-color primary palette:
 
 - **No inline styles.** Use Tailwind utility classes or the theme system.
 - Every component that fetches data must handle three states explicitly: **loading**, **error**, and **success**.
-- Forms must display validation errors clearly and accessibly.
+- **Forms:** Use **React Hook Form** combined with **Zod** (`@hookform/resolvers/zod`) for all forms to display validation errors clearly and ensure strict validation.
 - Interactive elements must have accessible labels (`aria-label`, `aria-describedby`) where visual context alone is insufficient.
-- Do not use `useEffect` for data that can be fetched with a proper data-fetching pattern (e.g., React Query or SWR if adopted).
+- **Data Fetching:** Use **React Query** (`@tanstack/react-query`) for all server state and API data fetching. Do not use `useEffect` for data fetching.
+- **State Management:** Use **Zustand** for client-side global state.
 
 ### File Organization
 
@@ -152,7 +154,7 @@ apps/web/src/
 
 - Each Worker handles a **single domain** (e.g., `delegates-worker`, `press-worker`).
 - Follow a strict **MVC (Model-View-Controller)** pattern for backend logic:
- - **Routes**: Define endpoints and OpenAPI specifications (thin layer).
+ - **Routes**: Define endpoints and OpenAPI specifications using **Hono Zod OpenAPI** (`@hono/zod-openapi`) (thin layer).
  - **Controllers**: Handle request/response orchestration (parse input → call service → return JSON).
  - **Services**: Contain business logic and database operations (stateless).
 - Route handlers must be **small and focused**. Extract business logic into service functions; keep handlers as thin orchestrators.
@@ -248,6 +250,7 @@ To ensure TrackMUN remains a premium, professional platform and avoids "AI slop"
 - **Access JWT verification** (non-impersonation): verify the token with **EdDSA** using the matching **public JWK** row in D1 (`jwkss`, keyed by JWT header `kid`). Implementation: `apps/worker/src/lib/verify-better-auth-jwt.ts`, used from `withAuth`.
 - **Authorization (roles)** always comes from the **D1 `users` row** for the subject (`sub` / user id). Do **not** trust JWT custom claims alone for RBAC; load the user from D1 after verification.
 - Role hierarchy: `admin > chair > oc > delegate` (no `guest` in D1 enum today; align product and docs when added).
+- **Admin Provisioning**: Admin users can provision new internal accounts (`oc` and `chair`) via the `AdminController.createUser` method. This leverages the internal Better Auth handler (`auth.handler(req)`) to securely bypass public registration flows.
 - **Impersonation**: admins receive a short-lived **HMAC-SHA256** JWT (`typ: 'impersonation'`, secret `IMPERSONATION_SECRET`) only for targets whose role is **`oc` or `chair`** (see `apps/worker/src/controllers/auth/auth.controller.ts`). Log events in **`impersonation_log`** via `AuthService.logImpersonation`.
 - Required bindings / secrets are declared on **`Bindings`** in `apps/worker/src/types/env.ts` (e.g. `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `IMPERSONATION_SECRET`, `DB`, `MEDIA`). Optional: `ENVIRONMENT` (`production` toggles Better Auth cookie settings in `lib/auth.ts`).
 - Return `401 Unauthorized` for missing/invalid tokens. Return `403 Forbidden` for insufficient permissions or missing D1 user rows.
@@ -504,7 +507,7 @@ npm run db:push
 - Memoize expensive computations with `useMemo`. Stabilize callback references with `useCallback` where it prevents unnecessary re-renders.
 - Lazy-load routes and heavy components using `React.lazy` and `Suspense`.
 - Optimize images: serve WebP where possible, use appropriate dimensions, and avoid loading full-resolution images in list views.
-- Avoid prop drilling beyond 2 levels — use context or a state management solution.
+- Avoid prop drilling beyond 2 levels — use **Zustand** for global client state.
 
 ---
 

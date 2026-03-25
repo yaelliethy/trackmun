@@ -4,6 +4,7 @@ import { Bindings } from '../../types/env';
 import { AuthContext } from '../../middleware/auth';
 import { UserRole } from '@trackmun/shared';
 import { getDb } from '../../db/client';
+import { getAuth } from '../../lib/auth';
 
 type AdminContext = Context<{ Bindings: Bindings; Variables: AuthContext }>;
 
@@ -22,6 +23,37 @@ export class AdminController {
     const result = await service.getUsersByRole(this.role, page, limit);
 
     return c.json({ success: true as const, data: result }, 200);
+  };
+
+  createUser = async (c: AdminContext) => {
+    const body = await c.req.json();
+    const auth = getAuth(c.env, getDb());
+
+    try {
+      const res = await auth.api.signUpEmail({
+        body: {
+          email: body.email,
+          name: body.name,
+          password: body.password,
+        },
+      });
+
+      if (!res) {
+        return c.json({ success: false as const, error: 'Failed to create user' }, 400);
+      }
+
+      // better-auth signUpEmail ignores role/council in the body, 
+      // so we promote the user to the specific format using our admin service.
+      const service = this.getService();
+      const updatedUser = await service.updateUser(res.user.id, {
+        role: this.role,
+        council: body.council,
+      });
+
+      return c.json({ success: true as const, data: updatedUser }, 201);
+    } catch (e: any) {
+      return c.json({ success: false as const, error: e.message || 'Internal error' }, 400);
+    }
   };
 
   updateUser = async (c: AdminContext) => {

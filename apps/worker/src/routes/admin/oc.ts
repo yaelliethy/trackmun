@@ -2,7 +2,7 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { Bindings } from '../../types/env';
 import { AuthContext, withAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
-import { UserSchema, UpdateUserSchema } from '@trackmun/shared';
+import { UserSchema, UpdateUserSchema, CreateUserSchema } from '@trackmun/shared';
 import { ocController } from '../../controllers/admin/oc.controller';
 
 const routes = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
@@ -32,6 +32,49 @@ routes.openapi(
     summary: 'List OC members',
   }),
   ocController.listUsers
+);
+
+routes.openapi(
+  createRoute({
+    method: 'post',
+    path: '/',
+    request: {
+      body: {
+        content: { 'application/json': { schema: CreateUserSchema } },
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.literal(true),
+              data: z.any(),
+            }),
+          },
+        },
+        description: 'Create OC member',
+      },
+      400: {
+        content: {
+          'application/json': {
+            schema: z.object({ success: z.literal(false), error: z.string() }),
+          },
+        },
+        description: 'Creation failed',
+      },
+      500: {
+        content: {
+          'application/json': {
+            schema: z.object({ success: z.literal(false), error: z.string() }),
+          },
+        },
+        description: 'Internal server error',
+      },
+    },
+    summary: 'Create OC member',
+  }),
+  ocController.createUser
 );
 
 routes.openapi(

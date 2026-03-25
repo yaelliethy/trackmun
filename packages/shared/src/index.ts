@@ -39,3 +39,40 @@ export const UpdateUserSchema = z.object({
   council: z.string().nullable().optional(),
   role: UserRoleSchema.optional(),
 });
+
+export const BenefitSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  createdAt: z.number().optional(),
+  updatedAt: z.number().optional(),
+});
+
+export type Benefit = z.infer<typeof BenefitSchema>;
+
+export const AttendancePeriodSchema = z.object({
+  id: z.string(),
+  dayId: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+});
+
+export type AttendancePeriod = z.infer<typeof AttendancePeriodSchema>;
+
+export const ConferenceDaySchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  date: z.string(),
+  periods: z.array(AttendancePeriodSchema).optional(),
+});
+
+export type ConferenceDay = z.infer<typeof ConferenceDaySchema>;
+
+export const CreateUserSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(1),
+  password: z.string().min(6),
+  role: UserRoleSchema,
+  council: z.string().optional(),
+});
+
+export type CreateUser = z.infer<typeof CreateUserSchema>;

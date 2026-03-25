@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  trackmun-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trackmun-dev
+    volumes:
+      - .:/app
+      # Exclude host node_modules to prevent cross-platform binary compatibility issues
+      - /app/node_modules
+      - /app/apps/web/node_modules
+      - /app/apps/worker/node_modules
+      - /app/packages/shared/node_modules
+    ports:
+      # Frontend Dev Server
+      - "3000:3000"
+      # Worker Dev Server
+      - "8787:8787"
+    environment:
+      - FORCE_COLOR=1
+    command: >
+      sh -c "pnpm install && 
+             echo 'Setting up D1 database...' &&
+             pnpm --filter @trackmun/worker run db:migrate -- -y &&
+             pnpm dev"

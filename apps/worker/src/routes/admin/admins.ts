@@ -2,17 +2,26 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { Bindings } from '../../types/env';
 import { AuthContext, withAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
-import { UserSchema, UpdateUserSchema, CreateUserSchema } from '@trackmun/shared';
-import { chairsController } from '../../controllers/admin/chairs.controller';
+import { UserSchema, CreateUserSchema, UpdateUserSchema, ImpersonateResponseSchema } from '@trackmun/shared';
+import { AdminController } from '../../controllers/admin/base.controller';
 
 const routes = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
 
+// All routes require authentication and admin role
 routes.use('*', withAuth, requireRole('admin'));
+
+const controller = new AdminController('admin');
 
 routes.openapi(
   createRoute({
     method: 'get',
     path: '/',
+    request: {
+      query: z.object({
+        page: z.string().optional(),
+        limit: z.string().optional(),
+      }),
+    },
     responses: {
       200: {
         content: {
@@ -26,12 +35,12 @@ routes.openapi(
             }),
           },
         },
-        description: 'List chairs',
+        description: 'List admins',
       },
     },
-    summary: 'List chairs',
+    summary: 'List admin users',
   }),
-  chairsController.listUsers
+  controller.listUsers
 );
 
 routes.openapi(
@@ -53,7 +62,7 @@ routes.openapi(
             }),
           },
         },
-        description: 'Create Chair member',
+        description: 'Create admin',
       },
       400: {
         content: {
@@ -63,18 +72,10 @@ routes.openapi(
         },
         description: 'Creation failed',
       },
-      500: {
-        content: {
-          'application/json': {
-            schema: z.object({ success: z.literal(false), error: z.string() }),
-          },
-        },
-        description: 'Internal server error',
-      },
     },
-    summary: 'Create Chair member',
+    summary: 'Create admin member',
   }),
-  chairsController.createUser
+  controller.createUser
 );
 
 routes.openapi(
@@ -97,7 +98,7 @@ routes.openapi(
             }),
           },
         },
-        description: 'Update chair',
+        description: 'Update admin',
       },
       404: {
         content: {
@@ -105,12 +106,12 @@ routes.openapi(
             schema: z.object({ success: z.literal(false), error: z.string() }),
           },
         },
-        description: 'Chair not found',
+        description: 'Admin not found',
       },
     },
-    summary: 'Update chair',
+    summary: 'Update admin member',
   }),
-  chairsController.updateUser
+  controller.updateUser
 );
 
 routes.openapi(
@@ -130,7 +131,7 @@ routes.openapi(
             }),
           },
         },
-        description: 'Delete chair',
+        description: 'Delete admin',
       },
       400: {
         content: {
@@ -138,12 +139,12 @@ routes.openapi(
             schema: z.object({ success: z.literal(false), error: z.string() }),
           },
         },
-        description: 'Delete failed',
+        description: 'Deletion failed',
       },
     },
-    summary: 'Delete chair',
+    summary: 'Delete admin member',
   }),
-  chairsController.deleteUser
+  controller.deleteUser
 );
 
 export default routes;

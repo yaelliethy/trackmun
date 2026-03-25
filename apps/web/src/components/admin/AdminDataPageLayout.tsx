@@ -11,9 +11,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -26,6 +23,7 @@ export interface AdminDataPageLayoutProps {
   isLoadingTotal?: boolean
   children: React.ReactNode
   footer?: React.ReactNode
+  action?: React.ReactNode
   className?: string
 }
 
@@ -37,6 +35,7 @@ export function AdminDataPageLayout({
   isLoadingTotal,
   children,
   footer,
+  action,
   className,
 }: AdminDataPageLayoutProps) {
   return (
@@ -80,15 +79,13 @@ export function AdminDataPageLayout({
         )}
       </div>
 
+      {action && (
+        <div className="flex items-center justify-end">
+          {action}
+        </div>
+      )}
+
       <Card className="overflow-hidden border-border/60 shadow-sm">
-        <CardHeader className="border-b border-border/60 bg-muted/20 px-6 py-6">
-          <CardTitle className="text-lg font-semibold tracking-tight">
-            Directory
-          </CardTitle>
-          <CardDescription className="text-sm leading-relaxed">
-            Search, edit, or remove users in this role. Changes apply immediately.
-          </CardDescription>
-        </CardHeader>
         <CardContent className="p-0">{children}</CardContent>
       </Card>
 

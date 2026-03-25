@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom"
 import type { User } from "@trackmun/shared"
 import brand from "@/config/brand"
-import { Users, ShieldCheck, Gavel, LogOut, ChevronsUpDown } from "lucide-react"
+import { Users, ShieldCheck, Gavel, LogOut, ChevronsUpDown, Gift, CalendarRange, ShieldAlert } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -29,6 +29,9 @@ const navItems = [
   { name: "Delegates", path: "/admin/delegates", icon: Users },
   { name: "OC members", path: "/admin/oc", icon: ShieldCheck },
   { name: "Chairs", path: "/admin/chairs", icon: Gavel },
+  { name: "Admins", path: "/admin/admins", icon: ShieldAlert },
+  { name: "Benefits", path: "/admin/benefits", icon: Gift },
+  { name: "Attendance", path: "/admin/attendance", icon: CalendarRange },
 ] as const
 
 export interface AdminAppSidebarProps {

@@ -10,6 +10,9 @@ export const ocService = {
   list: (page = 1, limit = 20) => 
     api.get<UserListResponse>(`/admin/oc?page=${page}&limit=${limit}`),
   
+  create: (data: any) =>
+    api.post<User>(`/admin/oc`, data),
+
   update: (id: string, data: { name?: string; council?: string | null }) =>
     api.patch<User>(`/admin/oc/${id}`, data),
   

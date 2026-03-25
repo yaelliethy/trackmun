@@ -1,12 +1,11 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { chairsService } from "../../services/chairs"
+import { adminsService } from "../../services/admins"
 import { UserTable } from "../../components/admin/UserTable"
 import { UserEditModal } from "../../components/admin/UserEditModal"
 import { UserDeleteModal } from "../../components/admin/UserDeleteModal"
 import { UserCreateModal } from "../../components/admin/UserCreateModal"
 import { User } from "@trackmun/shared"
-import { useAuthStore } from "../../hooks/useAuthStore"
 import { AdminDataPageLayout } from "../../components/admin/AdminDataPageLayout"
 import { AdminListPagination } from "../../components/admin/AdminListPagination"
 import { Button } from "@/components/ui/button"
@@ -14,18 +13,17 @@ import { Plus } from "lucide-react"
 
 const PAGE_SIZE = 20
 
-export const AdminChairsPage: React.FC = () => {
+export const AdminAdminsPage: React.FC = () => {
   const [page, setPage] = useState(1)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [deletingUser, setDeletingUser] = useState<User | null>(null)
   const [creatingUser, setCreatingUser] = useState(false)
 
   const queryClient = useQueryClient()
-  const { startImpersonation } = useAuthStore()
 
   const { data, isLoading } = useQuery({
-    queryKey: ["chairs", page],
-    queryFn: () => chairsService.list(page, PAGE_SIZE),
+    queryKey: ["admins", page],
+    queryFn: () => adminsService.list(page, PAGE_SIZE),
   })
 
   const updateMutation = useMutation({
@@ -35,48 +33,39 @@ export const AdminChairsPage: React.FC = () => {
     }: {
       id: string
       data: { name?: string; council?: string | null }
-    }) => chairsService.update(id, patch),
+    }) => adminsService.update(id, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chairs"] })
+      queryClient.invalidateQueries({ queryKey: ["admins"] })
     },
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => chairsService.delete(id),
+    mutationFn: (id: string) => adminsService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chairs"] })
+      queryClient.invalidateQueries({ queryKey: ["admins"] })
     },
   })
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => chairsService.create(data),
+    mutationFn: (data: any) => adminsService.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chairs"] })
+      queryClient.invalidateQueries({ queryKey: ["admins"] })
     },
   })
-
-  const handleImpersonate = async (user: User) => {
-    try {
-      const { token } = await chairsService.impersonate(user.id)
-      startImpersonation(token, user)
-    } catch (err) {
-      console.error("Impersonation failed:", err)
-    }
-  }
 
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0
 
   return (
     <AdminDataPageLayout
-      title="Chairs"
-      description="Oversee chair accounts, committee alignment, and awards workflows. Use impersonation to validate the chair experience end-to-end."
-      breadcrumbCurrent="Chairs"
+      title="Administrators"
+      description="Manage core platform administrators. These users have unrestricted access."
+      breadcrumbCurrent="Admins"
       totalCount={data?.total}
       isLoadingTotal={isLoading}
       action={
         <Button onClick={() => setCreatingUser(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Create Chair
+          Create Admin Member
         </Button>
       }
       footer={
@@ -92,7 +81,6 @@ export const AdminChairsPage: React.FC = () => {
         isLoading={isLoading}
         onEdit={setEditingUser}
         onDelete={setDeletingUser}
-        onImpersonate={handleImpersonate}
       />
 
       <UserEditModal
@@ -115,7 +103,7 @@ export const AdminChairsPage: React.FC = () => {
 
       <UserCreateModal
         isOpen={creatingUser}
-        role="chair"
+        role="admin"
         onClose={() => setCreatingUser(false)}
         onSave={async (data) => {
           await createMutation.mutateAsync(data)

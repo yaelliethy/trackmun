@@ -3,6 +3,9 @@ import { AdminLoginPage } from './pages/admin/AdminLoginPage';
 import { AdminDelegatesPage } from './pages/admin/AdminDelegatesPage';
 import { AdminOCPage } from './pages/admin/AdminOCPage';
 import { AdminChairsPage } from './pages/admin/AdminChairsPage';
+import { AdminAdminsPage } from './pages/admin/AdminAdminsPage';
+import { AdminBenefitsPage } from './pages/admin/AdminBenefitsPage';
+import { AdminAttendancePage } from './pages/admin/AdminAttendancePage';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { NotFoundPage, ForbiddenPage } from './pages/error/ErrorPage';
@@ -24,6 +27,9 @@ function App() {
           <Route path="delegates" element={<AdminDelegatesPage />} />
           <Route path="oc" element={<AdminOCPage />} />
           <Route path="chairs" element={<AdminChairsPage />} />
+          <Route path="admins" element={<AdminAdminsPage />} />
+          <Route path="benefits" element={<AdminBenefitsPage />} />
+          <Route path="attendance" element={<AdminAttendancePage />} />
         </Route>
 
         {/* Error Routes */}

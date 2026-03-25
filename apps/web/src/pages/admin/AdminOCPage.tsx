@@ -4,10 +4,13 @@ import { ocService } from "../../services/oc"
 import { UserTable } from "../../components/admin/UserTable"
 import { UserEditModal } from "../../components/admin/UserEditModal"
 import { UserDeleteModal } from "../../components/admin/UserDeleteModal"
+import { UserCreateModal } from "../../components/admin/UserCreateModal"
 import { User } from "@trackmun/shared"
 import { useAuthStore } from "../../hooks/useAuthStore"
 import { AdminDataPageLayout } from "../../components/admin/AdminDataPageLayout"
 import { AdminListPagination } from "../../components/admin/AdminListPagination"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
 
 const PAGE_SIZE = 20
 
@@ -15,6 +18,7 @@ export const AdminOCPage: React.FC = () => {
   const [page, setPage] = useState(1)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [deletingUser, setDeletingUser] = useState<User | null>(null)
+  const [creatingUser, setCreatingUser] = useState(false)
 
   const queryClient = useQueryClient()
   const { startImpersonation } = useAuthStore()
@@ -44,6 +48,13 @@ export const AdminOCPage: React.FC = () => {
     },
   })
 
+  const createMutation = useMutation({
+    mutationFn: (data: any) => ocService.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["oc"] })
+    },
+  })
+
   const handleImpersonate = async (user: User) => {
     try {
       const { token } = await ocService.impersonate(user.id)
@@ -62,6 +73,12 @@ export const AdminOCPage: React.FC = () => {
       breadcrumbCurrent="OC members"
       totalCount={data?.total}
       isLoadingTotal={isLoading}
+      action={
+        <Button onClick={() => setCreatingUser(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create OC Member
+        </Button>
+      }
       footer={
         <AdminListPagination
           page={page}
@@ -93,6 +110,15 @@ export const AdminOCPage: React.FC = () => {
         onClose={() => setDeletingUser(null)}
         onConfirm={async (id) => {
           await deleteMutation.mutateAsync(id)
+        }}
+      />
+
+      <UserCreateModal
+        isOpen={creatingUser}
+        role="oc"
+        onClose={() => setCreatingUser(false)}
+        onSave={async (data) => {
+          await createMutation.mutateAsync(data)
         }}
       />
     </AdminDataPageLayout>
