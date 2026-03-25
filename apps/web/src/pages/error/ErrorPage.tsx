@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { ModeToggle } from "@/components/mode-toggle"
 
 interface ErrorPageProps {
   code?: string
@@ -26,7 +27,10 @@ export const ErrorPage: React.FC<ErrorPageProps> = ({
   const navigate = useNavigate()
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center bg-muted/30 px-4 py-16">
+    <div className="relative flex min-h-[80vh] items-center justify-center bg-muted/30 px-4 py-16">
+      <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
+        <ModeToggle />
+      </div>
       <Card className="w-full max-w-lg border-border/80 shadow-lg">
         <CardHeader className="space-y-4 text-center sm:text-left">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive sm:mx-0">

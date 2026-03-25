@@ -5,17 +5,28 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { TooltipProvider } from './components/ui/tooltip';
+import { ThemeProvider } from './components/theme-provider';
+import { Toaster } from './components/ui/sonner';
 
 const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <App />
-        </TooltipProvider>
-      </QueryClientProvider>
-    </BrowserRouter>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      storageKey="trackmun-ui-theme"
+      disableTransitionOnChange
+    >
+      <BrowserRouter>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <App />
+            <Toaster richColors closeButton position="top-center" />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   </React.StrictMode>
 );

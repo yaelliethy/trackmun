@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import brand from "@/config/brand"
 import { motion } from "framer-motion"
 import { AlertCircle, ArrowRight, Shield } from "lucide-react"
+import { ModeToggle } from "@/components/mode-toggle"
 
 export const AdminLoginPage: React.FC = () => {
   const [email, setEmail] = useState("")
@@ -75,7 +76,10 @@ export const AdminLoginPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen bg-background">
+      <div className="absolute right-4 top-4 z-50 sm:right-6 sm:top-6">
+        <ModeToggle />
+      </div>
       <div className="grid min-h-screen lg:grid-cols-2">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
