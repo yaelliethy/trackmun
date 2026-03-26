@@ -44,10 +44,31 @@ export const getAuth = (env: Bindings, db: DbType) => {
           type: 'string',
           required: false,
         },
+        firstName: {
+          type: 'string',
+          required: false,
+        },
+        lastName: {
+          type: 'string',
+          required: false,
+        },
+        registrationStatus: {
+          type: 'string',
+          required: false,
+          defaultValue: 'pending',
+        },
       },
     },
     emailAndPassword: {
       enabled: true,
+      requireEmailVerification: true,
+    },
+    emailVerification: {
+      sendVerificationEmail: async ({ user, url }) => {
+        // Email verification handled by Brevo via custom registration flow
+        // This is a fallback for Better Auth's built-in verification
+        console.log(`Verification email sent to ${user.email}: ${url}`);
+      },
     },
     plugins: [
       jwt({
@@ -58,6 +79,7 @@ export const getAuth = (env: Bindings, db: DbType) => {
           return {
             role: user.role,
             council: user.council,
+            registrationStatus: user.registrationStatus,
           };
         },
       }),

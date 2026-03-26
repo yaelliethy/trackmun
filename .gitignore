@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.pnpm-store/
 .pnpm-debug.log*
 
 # Build outputs
@@ -7,6 +8,7 @@ dist/
 build/
 .wrangler/
 .dev.vars
+.dev.vars.example
 .env
 .env.local
 .env.*.local
@@ -15,6 +17,9 @@ build/
 .vscode/
 .idea/
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
 
 # Logs
 logs
@@ -26,3 +31,20 @@ yarn-error.log*
 # Testing
 coverage/
 .vitest-results/
+
+# Database (local SQLite files)
+*.db
+*.sqlite
+*.sqlite3
+local.db
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak

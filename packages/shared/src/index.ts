@@ -6,8 +6,11 @@ export type UserRole = z.infer<typeof UserRoleSchema>;
 export const UserSchema = z.object({
   id: z.string(),
   email: z.string().email(),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
   name: z.string(),
   role: UserRoleSchema,
+  registrationStatus: z.enum(['pending', 'approved', 'rejected']).optional().default('pending'),
   council: z.string().optional().nullable(),
   created_at: z.number(),
 });
@@ -76,3 +79,13 @@ export const CreateUserSchema = z.object({
 });
 
 export type CreateUser = z.infer<typeof CreateUserSchema>;
+
+export const RegisterUserSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().min(2, 'First name must be at least 2 characters'),
+  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
+  firstChoice: z.string().min(1, 'Please select a first choice committee'),
+  secondChoice: z.string().min(1, 'Please select a second choice committee'),
+});
+
+export type RegisterUser = z.infer<typeof RegisterUserSchema>;

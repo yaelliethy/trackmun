@@ -1,7 +1,9 @@
 import { User, UserRole } from '@trackmun/shared';
 import { DbType } from '../../db/client';
-import { users, impersonationLog } from '../../db/schema';
+import { users, impersonationLog, delegateProfiles } from '../../db/schema';
 import { eq } from 'drizzle-orm';
+import { getAuth } from '../../lib/auth';
+import { Bindings } from '../../types/env';
 
 export class AuthService {
   constructor(private db: DbType) {}
@@ -14,11 +16,79 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
       name: user.name,
       role: user.role as UserRole,
+      registrationStatus: user.registrationStatus as 'pending' | 'approved' | 'rejected' | undefined,
       council: user.council || undefined,
       created_at:
         user.createdAt instanceof Date ? user.createdAt.getTime() : user.createdAt,
+    };
+  }
+
+  async registerDelegate(
+    env: Bindings,
+    data: {
+      email: string;
+      firstName: string;
+      lastName: string;
+      firstChoice: string;
+      secondChoice: string;
+    }
+  ): Promise<User> {
+    const auth = getAuth(env, this.db);
+
+    const fullName = `${data.firstName} ${data.lastName}`;
+
+    const result = await auth.api.signUpEmail({
+      body: {
+        email: data.email,
+        name: fullName,
+        password: crypto.randomUUID(), // Auto-generate password, will be sent via email
+        firstName: data.firstName,
+        lastName: data.lastName,
+      },
+    });
+
+    if (!result || !result.user) {
+      throw new Error('Failed to create user');
+    }
+
+    // Update user with additional fields
+    await this.db
+      .update(users)
+      .set({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        registrationStatus: 'pending',
+      })
+      .where(eq(users.id, result.user.id))
+      .run();
+
+    // Create delegate profile with committee choices
+    await this.db
+      .insert(delegateProfiles)
+      .values({
+        userId: result.user.id,
+        firstChoice: data.firstChoice,
+        secondChoice: data.secondChoice,
+      })
+      .run();
+
+    return {
+      id: result.user.id,
+      email: result.user.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      name: fullName,
+      role: (result.user.role as UserRole) || 'delegate',
+      registrationStatus: 'pending',
+      council: result.user.council || undefined,
+      created_at:
+        result.user.createdAt instanceof Date
+          ? result.user.createdAt.getTime()
+          : result.user.createdAt,
     };
   }
 

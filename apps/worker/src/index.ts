@@ -17,7 +17,10 @@ const app = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
 
 // Initialize database middleware
 app.use('*', async (c, next) => {
-  initializeDb(c.env.DB);
+  initializeDb({
+    url: c.env.TURSO_DATABASE_URL,
+    authToken: c.env.TURSO_AUTH_TOKEN,
+  });
   return next();
 });
 

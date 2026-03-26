@@ -9,14 +9,21 @@ import { AdminAttendancePage } from './pages/admin/AdminAttendancePage';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { NotFoundPage, ForbiddenPage } from './pages/error/ErrorPage';
+import { RegisterPage } from './pages/auth/RegisterPage';
+import { RegistrationSuccessPage } from './pages/auth/RegistrationSuccessPage';
 
 function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Routes>
+        {/* Public Auth Routes */}
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/register/success" element={<RegistrationSuccessPage />} />
+        <Route path="/login" element={<AdminLoginPage />} />
+
         {/* Public Admin Routes */}
         <Route path="/admin/login" element={<AdminLoginPage />} />
-        
+
         {/* Protected Admin Routes */}
         <Route path="/admin" element={
           <ProtectedRoute>

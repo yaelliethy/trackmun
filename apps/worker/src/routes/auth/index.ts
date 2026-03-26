@@ -2,13 +2,50 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { Bindings } from '../../types/env';
 import { AuthContext, withAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
-import { UserSchema } from '@trackmun/shared';
+import { UserSchema, RegisterUserSchema } from '@trackmun/shared';
 import { AuthController } from '../../controllers/auth/auth.controller';
 import { getDb } from '../../db/client';
 import { getAuth } from '../../lib/auth';
 
 const auth = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
 const controller = new AuthController();
+
+// Register new delegate (public route)
+auth.openapi(
+  createRoute({
+    method: 'post',
+    path: '/register',
+    request: {
+      body: {
+        content: {
+          'application/json': {
+            schema: RegisterUserSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.literal(true),
+              data: z.object({
+                user: UserSchema,
+              }),
+            }),
+          },
+        },
+        description: 'User registered successfully',
+      },
+      400: {
+        description: 'Registration failed (email exists, invalid data)',
+      },
+    },
+    summary: 'Register a new delegate account',
+  }),
+  controller.register
+);
 
 // better-auth endpoints for Swagger documentation
 auth.openapi(

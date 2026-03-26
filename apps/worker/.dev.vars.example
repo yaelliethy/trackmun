@@ -1,10 +1,22 @@
-BETTER_AUTH_SECRET="your-better-auth-secret-min-32-chars"
-BETTER_AUTH_URL="http://localhost:8787"
-IMPERSONATION_SECRET="your-long-random-secret"
-
 # Development environment variables for TrackMUN Worker
 # Copy this file to .dev.vars and fill in the values
 # NEVER commit .dev.vars to git - it contains secrets
+
+# ===========================================
+# Turso Database Configuration
+# ===========================================
+# Get your database URL and auth token from https://turso.tech
+# Run: turso db show <your-db-name> to get the URL
+# Run: turso org tokens create (or turso db tokens create) for the auth token
+TURSO_DATABASE_URL="libsql://your-org-your-db.turso.io"
+TURSO_AUTH_TOKEN="your-turso-auth-token"
+
+# ===========================================
+# Better Auth Configuration
+# ===========================================
+BETTER_AUTH_SECRET="your-better-auth-secret-min-32-chars"
+BETTER_AUTH_URL="http://localhost:8787"
+IMPERSONATION_SECRET="your-long-random-secret"
 
 # ===========================================
 # Brevo Email Configuration

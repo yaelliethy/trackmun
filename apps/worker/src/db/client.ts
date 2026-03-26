@@ -1,11 +1,26 @@
-import { drizzle } from 'drizzle-orm/d1';
-import type { D1Database } from '@cloudflare/workers-types';
+import { drizzle } from 'drizzle-orm/libsql';
+import { createClient, type Client } from '@libsql/client';
 import * as schema from './schema';
 
+let clientInstance: Client | null = null;
 let dbInstance: ReturnType<typeof drizzle> | null = null;
 
-export function initializeDb(d1: D1Database) {
-  dbInstance = drizzle(d1, { schema });
+export interface TursoConfig {
+  url: string;
+  authToken?: string;
+}
+
+export function initializeDb(config: TursoConfig) {
+  if (clientInstance) {
+    return dbInstance!;
+  }
+
+  clientInstance = createClient({
+    url: config.url,
+    authToken: config.authToken,
+  });
+
+  dbInstance = drizzle(clientInstance, { schema });
   return dbInstance;
 }
 

@@ -16,7 +16,7 @@ If you are an AI agent working in this repository: **read this file fully before
 
 ## 2. Architecture Overview
 
-This is a full-stack Model United Nations (MUN) platform built entirely on Cloudflare's ecosystem.
+This is a full-stack Model United Nations (MUN) platform built on Cloudflare Workers with Turso (libSQL) database.
 
 ### High-Level Structure
 
@@ -27,14 +27,14 @@ This is a full-stack Model United Nations (MUN) platform built entirely on Cloud
 │ └── worker/ # Cloudflare Workers (API backend)
 ├── packages/
 │ └── shared/ # Shared TypeScript types and Zod schemas
-└── schema/ # D1 SQL migrations (aliased to apps/worker/migrations)
+└── apps/worker/migrations/ # Turso SQL migrations
 ```
 
 ### Core Principles
 
 - **Frontend** is a React SPA served as a static site. It communicates exclusively with the Workers API. It has no direct database or storage access.
 - **Backend** is a collection of Cloudflare Workers. Each Worker is stateless and handles a bounded domain (auth, QR, press, delegates, etc.). Workers respond to HTTP requests and return JSON.
-- **Database** is Cloudflare D1 (SQLite-compatible). Accessed only from Workers, never from the frontend.
+- **Database** is **Turso (libSQL)**. Accessed only from Workers via Drizzle ORM, never from the frontend.
 - **Storage** is Cloudflare R2 for media uploads. Files are uploaded directly from the client using presigned URLs. Workers generate presigned URLs but do not proxy file content.
 - **API-driven design**: All data flows through well-defined REST endpoints. The frontend is a consumer, not a peer.
 
@@ -44,15 +44,15 @@ The backend is organized into focused service modules:
 
 | Service | Responsibility |
 |-------------|-----------------------------------------------------|
-| `auth` | **Better Auth** (email/password, sessions, JWT plugin); EdDSA access JWTs with JWKS in D1 (`jwkss`); roles from D1 `users`; admin **impersonation** (HMAC JWT, see §5) |
-| `delegates` | Registration, profile management, QR code issuance |
+| `auth` | **Better Auth** (email/password, sessions, JWT plugin); roles from Turso `users`; admin **impersonation** (HMAC JWT); email verification |
+| `delegates` | Registration with pending approval, profile management, QR code issuance, committee choices |
 | `qr` | QR code signing, validation, replay protection |
 | `oc` | Attendance scanning, benefit tracking |
 | `chairs` | Country assignment, award management |
-| `admin` | Admin/setup routes, user management, platform control (impersonation tokens are issued via auth; see §5) |
+| `admin` | Admin/setup routes, user management, registration approval, platform control |
 | `press` | Social feed, posts, likes, replies, media |
 | `upload` | Presigned URL generation for R2 |
-| `email` | Transactional email delivery (e.g., verification, notifications) |
+| `email` | Transactional email delivery (Brevo integration) |
 
 Agents must respect this service boundary. Do not create cross-service dependencies without explicit justification.
 
@@ -247,13 +247,13 @@ To ensure TrackMUN remains a premium, professional platform and avoids "AI slop"
 
 - Every protected route must check the caller's role **explicitly**.
 - **Identity** is managed by **[Better Auth](https://www.better-auth.com/)** on the Worker (`apps/worker/src/lib/auth.ts`): email/password, sessions, and a **JWT plugin**. The client sends **`Authorization: Bearer <access_token>`** on API calls.
-- **Access JWT verification** (non-impersonation): verify the token with **EdDSA** using the matching **public JWK** row in D1 (`jwkss`, keyed by JWT header `kid`). Implementation: `apps/worker/src/lib/verify-better-auth-jwt.ts`, used from `withAuth`.
-- **Authorization (roles)** always comes from the **D1 `users` row** for the subject (`sub` / user id). Do **not** trust JWT custom claims alone for RBAC; load the user from D1 after verification.
-- Role hierarchy: `admin > chair > oc > delegate` (no `guest` in D1 enum today; align product and docs when added).
-- **Admin Provisioning**: Admin users can provision new internal accounts (`oc` and `chair`) via the `AdminController.createUser` method. This leverages the internal Better Auth handler (`auth.handler(req)`) to securely bypass public registration flows.
-- **Impersonation**: admins receive a short-lived **HMAC-SHA256** JWT (`typ: 'impersonation'`, secret `IMPERSONATION_SECRET`) only for targets whose role is **`oc` or `chair`** (see `apps/worker/src/controllers/auth/auth.controller.ts`). Log events in **`impersonation_log`** via `AuthService.logImpersonation`.
-- Required bindings / secrets are declared on **`Bindings`** in `apps/worker/src/types/env.ts` (e.g. `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `IMPERSONATION_SECRET`, `DB`, `MEDIA`). Optional: `ENVIRONMENT` (`production` toggles Better Auth cookie settings in `lib/auth.ts`).
-- Return `401 Unauthorized` for missing/invalid tokens. Return `403 Forbidden` for insufficient permissions or missing D1 user rows.
+- **Authorization (roles)** always comes from the **Turso `users` row** for the subject (`sub` / user id). Do **not** trust JWT custom claims alone for RBAC; load the user from Turso after verification.
+- **Registration Status**: New delegates have `registration_status = 'pending'`. They must be approved by admin before accessing full features.
+- Role hierarchy: `admin > chair > oc > delegate`
+- **Admin Provisioning**: Admin users can provision new internal accounts (`oc` and `chair`) via the `AdminController.createUser` method.
+- **Impersonation**: admins receive a short-lived **HMAC-SHA256** JWT (`typ: 'impersonation'`, secret `IMPERSONATION_SECRET`) only for targets whose role is **`oc` or `chair`**. Log events in **`impersonation_log`** via `AuthService.logImpersonation`.
+- Required bindings / secrets are declared on **`Bindings`** in `apps/worker/src/types/env.ts` (e.g. `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `IMPERSONATION_SECRET`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `MEDIA`). Optional: `ENVIRONMENT` (`production` toggles Better Auth cookie settings in `lib/auth.ts`).
+- Return `401 Unauthorized` for missing/invalid tokens. Return `403 Forbidden` for insufficient permissions or pending/rejected registration status.
 
 ### Middleware Patterns
 
@@ -282,19 +282,47 @@ Never return raw data without the envelope. Never expose internal error details 
 
 ---
 
-## 6. Database (D1) Guidelines
+## 6. Database (Turso/libSQL) Guidelines
 
 ### Schema Design
 
 - Normalize the schema. Avoid storing repeated data in multiple places.
 - Every table must have a primary key (`id`), a `created_at` timestamp, and an `updated_at` timestamp.
 - Use `snake_case` for all table and column names.
-- Table names must be plural and descriptive: `delegates`, `press_posts`, `qr_tokens`, `awards`.
+- Table names must be plural and descriptive: `users`, `delegate_profiles`, `press_posts`, `qr_tokens`, `awards`.
+
+### Key Tables
+
+```sql
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  first_name TEXT,
+  last_name TEXT,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'delegate',
+  registration_status TEXT NOT NULL DEFAULT 'pending',
+  council TEXT,
+  email_verified INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE delegate_profiles (
+  user_id TEXT PRIMARY KEY REFERENCES users(id),
+  year TEXT,
+  country TEXT,
+  press_agency TEXT,
+  first_choice TEXT,
+  second_choice TEXT,
+  awards TEXT DEFAULT '[]'
+);
+```
 
 ### Query Rules
 
 - Write explicit, readable SQL. Avoid overly complex joins — if a query requires more than 3 joins, consider restructuring the data model.
-- Always use parameterized queries. **Never interpolate user input into SQL strings.**
+- Always use parameterized queries via Drizzle ORM. **Never interpolate user input into SQL strings.**
 - Prefer simple indexed lookups over full-table scans. Add indexes on foreign keys and commonly filtered columns.
 - Paginate all list queries. Never return unbounded result sets.
 
@@ -302,19 +330,20 @@ Never return raw data without the envelope. Never expose internal error details 
 
 - All schema changes must be written as versioned migration files in `apps/worker/migrations/`.
 - Migration files are append-only. Never modify an already-applied migration.
-- Migration naming: `0001_create_delegates.sql`, `0002_add_awards_table.sql`.
+- Migration naming: `0001_create_users.sql`, `0002_add_delegate_profiles.sql`.
+- Apply migrations: `pnpm db:generate` then `pnpm db:push` (local) or manual apply (production).
 
 ---
 
 ## Drizzle ORM
 
-All database access in the Worker uses **Drizzle ORM** for type-safe, composable queries. Raw SQL strings are eliminated in favor of the Drizzle query builder.
+All database access in the Worker uses **Drizzle ORM** for type-safe, composable queries with Turso (libSQL).
 
 ### Installation
 
 Dependencies are declared in `apps/worker/package.json`:
 - `drizzle-orm` — ORM runtime
-- `@libsql/client` — D1 client driver
+- `@libsql/client` — Turso client driver
 - `drizzle-kit` — CLI for migrations and schema management
 
 ### File Structure
@@ -323,18 +352,18 @@ Dependencies are declared in `apps/worker/package.json`:
 apps/worker/src/
 ├── db/
 │ ├── schema.ts # Table definitions and relations
-│ └── client.ts # Database client initialization (initializeDb, getDb)
+│ └── client.ts # Database client initialization (Turso/libsql)
 ├── lib/
 │ ├── auth.ts # better-auth instance factory
-│ └── verify-better-auth-jwt.ts # Access JWT + JWKS lookup
+│ └── verify-better-auth-jwt.ts # Access JWT verification
 ├── middleware/
 │ ├── auth.ts # withAuth
 │ └── rbac.ts # requireRole
-├── routes/ # OpenAPI routers (e.g. routes/auth, routes/admin)
+├── routes/ # OpenAPI routers
 ├── controllers/ # Thin handlers
 └── services/
- ├── admin/ # Admin & setup services
- └── auth/ # User lookup, impersonation log, impersonation token signing
+ ├── admin/ # Admin services
+ └── auth/ # Auth services
 ```
 
 ### Usage Pattern
@@ -364,7 +393,7 @@ const user = await db.select().from(users).where(eq(users.id, id)).get();
 const results = await db
  .select()
  .from(users)
- .where(eq(users.role, 'delegate'))
+ .where(eq(users.registrationStatus, 'pending'))
  .limit(20)
  .offset((page - 1) * 20)
  .all();
@@ -380,26 +409,17 @@ const result = await db.select({ count: count() }).from(users).get();
 await db.insert(users).values({
  id: 'user-123',
  email: 'user@example.com',
- name: 'John',
+ firstName: 'John',
+ lastName: 'Doe',
+ name: 'John Doe',
  role: 'delegate',
+ registrationStatus: 'pending',
 }).run();
-```
-
-**INSERT...ON CONFLICT DO UPDATE:**
-```typescript
-await db
- .insert(users)
- .values({ id, email, name, role: 'delegate' })
- .onConflictDoUpdate({
- target: users.id,
- set: { email, name: sql`COALESCE(${users.name}, ${name})` },
- })
- .run();
 ```
 
 **UPDATE:**
 ```typescript
-await db.update(users).set({ name: 'New Name' }).where(eq(users.id, id)).run();
+await db.update(users).set({ registrationStatus: 'approved' }).where(eq(users.id, id)).run();
 ```
 
 **DELETE:**
@@ -411,21 +431,21 @@ await db.delete(users).where(eq(users.id, id)).run();
 
 ```bash
 # Generate migration files from schema.ts changes
-npm run db:generate
+pnpm db:generate
 
-# Apply migrations locally
-npm run db:migrate
+# Push schema to local Turso
+pnpm db:push
 
-# Push schema to D1
-npm run db:push
+# Apply migrations to production (manual)
+turso db shell <database-name> < migrations/0001_*.sql
 ```
 
-### Why Drizzle?
+### Why Drizzle + Turso?
 
 1. **Type-safe**: Full TypeScript with compile-time checking
 2. **No SQL injection**: Query builder eliminates string interpolation risk
 3. **Composable**: Build complex queries from simple, reusable pieces
-4. **Relations**: Eager and lazy loading via defined relationships
+4. **Better concurrency**: Turso handles concurrent writes better than D1
 5. **Auto-migrations**: Drizzle generates migrations from schema changes
 6. **Parameterization**: Automatic; no manual query parameterization needed
 

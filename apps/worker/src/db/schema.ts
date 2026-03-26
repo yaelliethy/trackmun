@@ -14,8 +14,11 @@ export const users = sqliteTable(
   {
     id: text('id').primaryKey(),
     email: text('email').notNull().unique(),
-    name: text('name').notNull(),
+    firstName: text('first_name'),
+    lastName: text('last_name'),
+    name: text('name').notNull(), // Computed: firstName + lastName
     role: text('role', { enum: ['delegate', 'oc', 'chair', 'admin'] }).notNull().default('delegate'),
+    registrationStatus: text('registration_status', { enum: ['pending', 'approved', 'rejected'] }).notNull().default('pending'),
     council: text('council'),
     emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
     image: text('image'),
@@ -25,6 +28,7 @@ export const users = sqliteTable(
   (table) => ({
     emailIdx: index('idx_email').on(table.email),
     roleIdx: index('idx_role').on(table.role),
+    registrationStatusIdx: index('idx_registration_status').on(table.registrationStatus),
   })
 );
 
@@ -50,6 +54,8 @@ export const delegateProfiles = sqliteTable('delegate_profiles', {
   year: text('year'),
   country: text('country'),
   pressAgency: text('press_agency'),
+  firstChoice: text('first_choice'),
+  secondChoice: text('second_choice'),
   awards: text('awards').default('[]'), // JSON array
 });
 

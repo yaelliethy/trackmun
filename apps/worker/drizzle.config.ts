@@ -3,10 +3,10 @@ import { Config } from 'drizzle-kit';
 export default {
   schema: './src/db/schema.ts',
   out: './migrations',
-  driver: 'd1',
+  driver: 'libsql',
   dbCredentials: {
-    wranglerConfigPath: './wrangler.toml',
-    dbName: 'DB',
+    url: process.env.TURSO_DATABASE_URL!,
+    authToken: process.env.TURSO_AUTH_TOKEN!,
   },
   dialect: 'sqlite',
 } satisfies Config;

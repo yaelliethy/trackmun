@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import { api } from "../../services/api"
 import { User } from "@trackmun/shared"
-import { useLocation, useNavigate } from "react-router-dom"
+import { useLocation, useNavigate, Link } from "react-router-dom"
 import { useAuthStore } from "../../hooks/useAuthStore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -230,9 +230,15 @@ export const AdminLoginPage: React.FC = () => {
               </CardContent>
             </Card>
 
-            <p className="text-center text-xs leading-relaxed text-muted-foreground">
-              Need access? Contact your conference administrator.
-            </p>
+            <div className="text-center text-xs leading-relaxed text-muted-foreground">
+              <p className="mb-2">Need access? Contact your conference administrator.</p>
+              <p>
+                Are you a delegate?{" "}
+                <Link to="/register" className="font-medium text-primary hover:underline">
+                  Create your account
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>
