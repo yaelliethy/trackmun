@@ -18,6 +18,7 @@ import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { NotFoundPage, ForbiddenPage } from './pages/error/ErrorPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { RegistrationSuccessPage } from './pages/auth/RegistrationSuccessPage';
+import { RootRedirect } from './components/common/RootRedirect';
 
 function App() {
   return (
@@ -33,7 +34,7 @@ function App() {
 
         {/* Protected Delegate Routes */}
         <Route path="/delegate" element={
-          <ProtectedRoute requiredRole="delegate">
+          <ProtectedRoute requiredRole={["delegate"]}>
             <DelegateDashboardPage />
           </ProtectedRoute>
         }>
@@ -53,7 +54,7 @@ function App() {
 
         {/* Protected Admin Routes */}
         <Route path="/admin" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute requiredRole={["admin"]}>
             <AdminLayout />
           </ProtectedRoute>
         }>
@@ -72,8 +73,8 @@ function App() {
         <Route path="/403" element={<ForbiddenPage />} />
         <Route path="/404" element={<NotFoundPage />} />
 
-        {/* Root Redirect */}
-        <Route path="/" element={<Navigate to="/admin/delegates" replace />} />
+        {/* Root Redirect - checks auth and redirects accordingly */}
+        <Route path="/" element={<RootRedirect />} />
 
         {/* Catch-all 404 */}
         <Route path="*" element={<NotFoundPage />} />

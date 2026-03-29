@@ -6,10 +6,12 @@ import { AuthContext } from './middleware/auth';
 import { initializeDb } from './db/client';
 import authRoutes from './routes/auth';
 import delegateRoutes from './routes/admin/delegates';
+import delegateProfileRoutes from './routes/delegates';
 import ocRoutes from './routes/admin/oc';
 import ocMemberRoutes from './routes/oc/index';
 import chairRoutes from './routes/admin/chairs';
 import setupRoutes from './routes/admin/setup';
+import delegateSetupRoutes from './routes/delegates/setup';
 import benefitsRoutes from './routes/admin/benefits';
 import attendanceRoutes from './routes/admin/attendance';
 import adminsRoutes from './routes/admin/admins';
@@ -105,9 +107,11 @@ app.openapi(
 app.route('/auth', authRoutes);
 
 app.route('/admin/delegates', delegateRoutes);
+app.route('/delegates', delegateProfileRoutes);
 app.route('/admin/oc', ocRoutes);
 app.route('/admin/chairs', chairRoutes);
 app.route('/admin/setup', setupRoutes);
+app.route('/delegates/setup', delegateSetupRoutes);
 app.route('/admin/benefits', benefitsRoutes);
 app.route('/admin/attendance', attendanceRoutes);
 app.route('/admin/admins', adminsRoutes);

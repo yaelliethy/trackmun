@@ -23,7 +23,7 @@ interface UserTableProps {
   onEdit: (user: User) => void
   onDelete: (user: User) => void
   onViewResponses?: (user: User) => void
-  /** When false, the Council column is hidden (e.g. OC and Admins lists). Default true. */
+  /** When false, the Council column is hidden (e.g. OC and Admins lists). */
   showCouncilColumn?: boolean
   onImpersonate?: (user: User) => void
   onTogglePaymentStatus?: (
@@ -31,6 +31,7 @@ interface UserTableProps {
     field: "depositPaymentStatus" | "fullPaymentStatus",
     current: string
   ) => void
+  onReviewPayment?: (user: User) => void
 }
 
 function PaymentBadge({
@@ -66,6 +67,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   showCouncilColumn = true,
   onImpersonate,
   onTogglePaymentStatus,
+  onReviewPayment,
 }) => {
   const isDelegateTable = users.some((u) => u.role === "delegate")
   const colCount =
@@ -201,15 +203,15 @@ export const UserTable: React.FC<UserTableProps> = ({
                           />
                         </div>
                         {user.paymentProofR2Key && (
-                          <a
-                            href={`https://mun-media.s3.amazonaws.com/${user.paymentProofR2Key}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-1 text-[11px] text-primary hover:underline underline-offset-2"
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 text-[11px] text-primary hover:text-primary"
+                            onClick={() => onReviewPayment?.(user)}
                           >
-                            <ExternalLink className="h-3 w-3" />
-                            View proof
-                          </a>
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            Review payment
+                          </Button>
                         )}
                       </div>
                     )}

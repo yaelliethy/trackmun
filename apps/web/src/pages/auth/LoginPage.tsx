@@ -31,6 +31,12 @@ export const LoginPage: React.FC = () => {
         { email, password }
       )
 
+      // Clear any existing auth data first
+      localStorage.removeItem("auth_token")
+      localStorage.removeItem("refresh_token")
+      localStorage.removeItem("impersonation_token")
+      localStorage.removeItem("impersonated_user")
+
       localStorage.setItem("refresh_token", loginRes.token)
 
       const tokenRes = await api.get<{ accessToken: string }>("/auth/token")
@@ -38,13 +44,27 @@ export const LoginPage: React.FC = () => {
 
       setUser(loginRes.user)
 
-      if (loginRes.user.role === "admin") {
-        navigate("/admin/delegates", { replace: true })
-      } else {
-        navigate("/delegate/dashboard", { replace: true })
+      console.log("Login successful:", loginRes.user)
+
+      // Redirect based on role
+      switch (loginRes.user.role) {
+        case "admin":
+        case "chair":
+        case "oc":
+          navigate("/admin/delegates", { replace: true })
+          break
+        case "delegate":
+          navigate("/delegate/dashboard", { replace: true })
+          break
+        default:
+          navigate("/login", { replace: true })
       }
-    } catch {
-      setError("Invalid email or password. Please check your credentials and try again.")
+    } catch (err: any) {
+      console.error("Login error:", err)
+      // Clear tokens on error
+      localStorage.removeItem("auth_token")
+      localStorage.removeItem("refresh_token")
+      setError(err.message || "Invalid email or password. Please check your credentials and try again.")
     } finally {
       setLoading(false)
     }
