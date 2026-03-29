@@ -13,6 +13,16 @@ routes.openapi(
   createRoute({
     method: 'get',
     path: '/',
+    request: {
+      query: z.object({
+        page: z.string().optional(),
+        limit: z.string().optional(),
+        search: z.string().optional(),
+        registrationStatus: z.enum(['pending', 'approved', 'rejected']).optional(),
+        depositPaymentStatus: z.enum(['pending', 'paid']).optional(),
+        fullPaymentStatus: z.enum(['pending', 'paid']).optional(),
+      }),
+    },
     responses: {
       200: {
         content: {

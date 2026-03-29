@@ -13,6 +13,14 @@ routes.openapi(
   createRoute({
     method: 'get',
     path: '/',
+    request: {
+      query: z.object({
+        page: z.string().optional(),
+        limit: z.string().optional(),
+        search: z.string().optional(),
+        council: z.string().optional(),
+      }),
+    },
     responses: {
       200: {
         content: {

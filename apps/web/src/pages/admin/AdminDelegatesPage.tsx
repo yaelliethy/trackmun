@@ -2,24 +2,47 @@ import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { delegatesService } from "../../services/delegates"
 import { UserTable } from "../../components/admin/UserTable"
+import { UserFilters, UserFilterValues } from "../../components/admin/UserFilters"
 import { UserEditModal } from "../../components/admin/UserEditModal"
 import { UserDeleteModal } from "../../components/admin/UserDeleteModal"
-import { User } from "@trackmun/shared"
+import { User, DelegateResponse } from "@trackmun/shared"
 import { AdminDataPageLayout } from "../../components/admin/AdminDataPageLayout"
 import { AdminListPagination } from "../../components/admin/AdminListPagination"
+import { adminRegistrationService } from "../../services/registration"
+import { toast } from "sonner"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import { Badge } from "@/components/ui/badge"
 
 const PAGE_SIZE = 20
 
 export const AdminDelegatesPage: React.FC = () => {
   const [page, setPage] = useState(1)
+  const [filters, setFilters] = useState<UserFilterValues>({})
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [deletingUser, setDeletingUser] = useState<User | null>(null)
+  const [selectedResponse, setSelectedResponse] = useState<DelegateResponse | null>(null)
 
   const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery({
-    queryKey: ["delegates", page],
-    queryFn: () => delegatesService.list(page, PAGE_SIZE),
+    queryKey: ["delegates", page, filters],
+    queryFn: () => delegatesService.list(page, PAGE_SIZE, filters),
+  })
+
+  const handleFiltersChange = (newFilters: UserFilterValues) => {
+    setFilters(newFilters)
+    setPage(1)
+  }
+
+  const { data: allResponses } = useQuery({
+    queryKey: ["admin-registration-responses"],
+    queryFn: () => adminRegistrationService.getResponses(),
   })
 
   const updateMutation = useMutation({
@@ -53,6 +76,15 @@ export const AdminDelegatesPage: React.FC = () => {
     },
   })
 
+  const handleViewResponses = (user: User) => {
+    const response = allResponses?.find((r) => r.userId === user.id)
+    if (response) {
+      setSelectedResponse(response)
+    } else {
+      toast.error("No registration responses found for this delegate.")
+    }
+  }
+
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0
 
   return (
@@ -70,11 +102,18 @@ export const AdminDelegatesPage: React.FC = () => {
         />
       }
     >
+      <UserFilters
+        showRegistrationStatus
+        showDepositPaymentStatus
+        showFullPaymentStatus
+        onFiltersChange={handleFiltersChange}
+      />
       <UserTable
         users={data?.users ?? []}
         isLoading={isLoading}
         onEdit={setEditingUser}
         onDelete={setDeletingUser}
+        onViewResponses={handleViewResponses}
         onTogglePaymentStatus={(user, field, currentStatus) => {
           paymentMutation.mutate({ 
             id: user.id, 
@@ -101,6 +140,68 @@ export const AdminDelegatesPage: React.FC = () => {
           await deleteMutation.mutateAsync(id)
         }}
       />
+
+      <DelegateResponseSheet
+        response={selectedResponse}
+        onClose={() => setSelectedResponse(null)}
+      />
     </AdminDataPageLayout>
+  )
+}
+
+function DelegateResponseSheet({
+  response,
+  onClose,
+}: {
+  response: DelegateResponse | null
+  onClose: () => void
+}) {
+  return (
+    <Sheet open={!!response} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className="sm:max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Registration Responses</SheetTitle>
+          <SheetDescription>
+            Full answers provided by {response?.name} during registration.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-6">
+          <div className="grid grid-cols-2 gap-4 text-sm border-b pb-4">
+            <div>
+              <p className="text-muted-foreground">Email</p>
+              <p className="font-medium">{response?.email}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Status</p>
+              <Badge
+                variant={
+                  response?.registrationStatus === "approved"
+                    ? "success"
+                    : response?.registrationStatus === "rejected"
+                    ? "destructive"
+                    : "secondary"
+                }
+              >
+                {response?.registrationStatus}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {response?.answers.map((answer) => (
+              <div key={answer.questionId} className="space-y-1">
+                <p className="text-sm font-medium text-primary">
+                  {answer.questionLabel}
+                </p>
+                <div className="rounded-md bg-muted/30 p-3 text-sm">
+                  {answer.value || <span className="text-muted-foreground italic">No answer provided</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }

@@ -1,7 +1,7 @@
 import { DbType } from '../../db/client';
-import { settings, registrationSteps, registrationQuestions } from '../../db/schema';
+import { settings, registrationSteps, registrationQuestions, delegateAnswers, users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
-import { RegistrationStep, RegistrationQuestion, Settings } from '@trackmun/shared';
+import { RegistrationStep, RegistrationQuestion, Settings, DelegateResponse } from '@trackmun/shared';
 
 export const COUNCIL_PREFERENCE_ALREADY_EXISTS =
   'Only one council preference question is allowed per registration form.';
@@ -173,5 +173,43 @@ export class RegistrationService {
 
   async deleteQuestion(id: string): Promise<void> {
     await this.db.delete(registrationQuestions).where(eq(registrationQuestions.id, id)).run();
+  }
+
+  async getResponses(): Promise<DelegateResponse[]> {
+    const rows = await this.db
+      .select({
+        userId: users.id,
+        name: users.name,
+        email: users.email,
+        registrationStatus: users.registrationStatus,
+        questionId: registrationQuestions.id,
+        questionLabel: registrationQuestions.label,
+        value: delegateAnswers.value,
+      })
+      .from(delegateAnswers)
+      .innerJoin(users, eq(delegateAnswers.userId, users.id))
+      .innerJoin(registrationQuestions, eq(delegateAnswers.questionId, registrationQuestions.id))
+      .all();
+
+    const responsesMap = new Map<string, DelegateResponse>();
+
+    for (const row of rows) {
+      if (!responsesMap.has(row.userId)) {
+        responsesMap.set(row.userId, {
+          userId: row.userId,
+          name: row.name,
+          email: row.email,
+          registrationStatus: row.registrationStatus as 'pending' | 'approved' | 'rejected',
+          answers: [],
+        });
+      }
+      responsesMap.get(row.userId)!.answers.push({
+        questionId: row.questionId,
+        questionLabel: row.questionLabel,
+        value: row.value,
+      });
+    }
+
+    return Array.from(responsesMap.values());
   }
 }

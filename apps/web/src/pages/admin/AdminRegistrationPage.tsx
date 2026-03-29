@@ -85,7 +85,9 @@ export const AdminRegistrationPage: React.FC = () => {
 function SettingsTab({ settings }: { settings: Settings }) {
   const [deposit, setDeposit] = useState(settings?.registration_deposit_amount?.toString() || "")
   const [full, setFull] = useState(settings?.registration_full_amount?.toString() || "")
-  const [timing, setTiming] = useState(settings?.payment_proof_timing || "after_acceptance")
+  const [timing, setTiming] = useState<"registration" | "after_acceptance">(
+    settings?.payment_proof_timing || "after_acceptance"
+  )
   const [registrationOpen, setRegistrationOpen] = useState(
     settings?.registration_enabled !== false
   )
@@ -177,7 +179,10 @@ function SettingsTab({ settings }: { settings: Settings }) {
           <p className="text-sm text-muted-foreground pb-2">
             When should delegates upload their proof of payment?
           </p>
-          <Select value={timing} onValueChange={setTiming}>
+          <Select
+            value={timing}
+            onValueChange={(val) => setTiming(val as "registration" | "after_acceptance")}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select timing" />
             </SelectTrigger>
@@ -197,8 +202,8 @@ function SettingsTab({ settings }: { settings: Settings }) {
   )
 }
 
-const STEP_DND_ACTIVATION = { distance: 8 }
-const QUESTION_DND_ACTIVATION = { distance: 8 }
+const STEP_DND_ACTIVATION = { activationConstraint: { distance: 8 } }
+const QUESTION_DND_ACTIVATION = { activationConstraint: { distance: 8 } }
 
 function SortableStepShell({
   id,

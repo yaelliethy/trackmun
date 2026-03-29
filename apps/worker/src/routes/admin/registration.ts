@@ -2,7 +2,7 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { Bindings } from '../../types/env';
 import { AuthContext, withAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
-import { RegistrationStepSchema, RegistrationQuestionSchema, SettingsSchema } from '@trackmun/shared';
+import { RegistrationStepSchema, RegistrationQuestionSchema, SettingsSchema, DelegateResponseSchema } from '@trackmun/shared';
 import { registrationController } from '../../controllers/admin/registration.controller';
 
 const routes = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
@@ -41,15 +41,20 @@ routes.openapi(createRoute({
 }), registrationController.listQuestions);
 
 routes.openapi(createRoute({
-  method: 'post', path: '/questions', request: { body: { content: { 'application/json': { schema: z.object({ stepId: z.string(), label: z.string().min(1), type: z.enum(['text', 'long_text', 'choices', 'dropdown', 'council_preference']), options: z.string().optional().nullable(), required: z.boolean(), displayOrder: z.number(), councilPreferenceCount: z.number().int().min(1).optional() }) } } } }, responses: { 201: { description: 'Create question', content: { 'application/json': { schema: z.object({ success: z.literal(true), data: RegistrationQuestionSchema }) } } } }
+  method: 'post', path: '/questions', request: { body: { content: { 'application/json': { schema: z.object({ stepId: z.string(), label: z.string().min(1), type: z.enum(['text', 'long_text', 'choices', 'dropdown', 'council_preference']), options: z.string().optional().nullable(), required: z.boolean(), displayOrder: z.number(), councilPreferenceCount: z.number().int().min(1).optional() }) } } } }, responses: { 201: { description: 'Create question', content: { 'application/json': { schema: z.object({ success: z.literal(true), data: RegistrationQuestionSchema }) } } }, 400: { description: 'Bad Request', content: { 'application/json': { schema: z.object({ success: z.literal(false), error: z.string() }) } } } }
 }), registrationController.createQuestion);
 
 routes.openapi(createRoute({
-  method: 'put', path: '/questions/{id}', request: { params: z.object({ id: z.string() }), body: { content: { 'application/json': { schema: z.object({ label: z.string().optional(), type: z.enum(['text', 'long_text', 'choices', 'dropdown', 'council_preference']).optional(), options: z.string().optional().nullable(), required: z.boolean().optional(), displayOrder: z.number().optional(), councilPreferenceCount: z.number().int().min(1).optional() }) } } } }, responses: { 200: { description: 'Update question', content: { 'application/json': { schema: z.object({ success: z.literal(true), data: z.null() }) } } } }
+  method: 'put', path: '/questions/{id}', request: { params: z.object({ id: z.string() }), body: { content: { 'application/json': { schema: z.object({ label: z.string().optional(), type: z.enum(['text', 'long_text', 'choices', 'dropdown', 'council_preference']).optional(), options: z.string().optional().nullable(), required: z.boolean().optional(), displayOrder: z.number().optional(), councilPreferenceCount: z.number().int().min(1).optional() }) } } } }, responses: { 200: { description: 'Update question', content: { 'application/json': { schema: z.object({ success: z.literal(true), data: z.null() }) } } }, 400: { description: 'Bad Request', content: { 'application/json': { schema: z.object({ success: z.literal(false), error: z.string() }) } } } }
 }), registrationController.updateQuestion);
 
 routes.openapi(createRoute({
   method: 'delete', path: '/questions/{id}', request: { params: z.object({ id: z.string() }) }, responses: { 200: { description: 'Delete question', content: { 'application/json': { schema: z.object({ success: z.literal(true), data: z.null() }) } } } }
 }), registrationController.deleteQuestion);
+
+// Responses
+routes.openapi(createRoute({
+  method: 'get', path: '/responses', responses: { 200: { description: 'List delegate responses', content: { 'application/json': { schema: z.object({ success: z.literal(true), data: z.array(DelegateResponseSchema) }) } } } }
+}), registrationController.getResponses);
 
 export default routes;

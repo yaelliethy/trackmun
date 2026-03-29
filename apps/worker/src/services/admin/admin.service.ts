@@ -18,10 +18,18 @@ import {
   sessions,
   accounts,
 } from '../../db/schema';
-import { eq, or, inArray, count } from 'drizzle-orm';
+import { eq, or, inArray, count, and, like, SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
+
+export interface UserFilters {
+  search?: string;
+  registrationStatus?: 'pending' | 'approved' | 'rejected';
+  council?: string;
+  depositPaymentStatus?: 'pending' | 'paid';
+  fullPaymentStatus?: 'pending' | 'paid';
+}
 
 export class AdminService {
   constructor(private db: DbType) {}
@@ -29,15 +37,45 @@ export class AdminService {
   async getUsersByRole(
     role: UserRole,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    filters?: UserFilters
   ): Promise<{ users: User[]; total: number }> {
     const offset = (page - 1) * limit;
+
+    const conditions: SQL[] = [eq(users.role, role)];
+
+    if (filters?.search) {
+      conditions.push(
+        or(
+          like(users.name, `%${filters.search}%`),
+          like(users.email, `%${filters.search}%`)
+        ) as SQL
+      );
+    }
+
+    if (filters?.registrationStatus) {
+      conditions.push(eq(users.registrationStatus, filters.registrationStatus));
+    }
+
+    if (filters?.council) {
+      conditions.push(like(users.council, `%${filters.council}%`));
+    }
+
+    if (filters?.depositPaymentStatus) {
+      conditions.push(eq(delegateProfiles.depositPaymentStatus, filters.depositPaymentStatus));
+    }
+
+    if (filters?.fullPaymentStatus) {
+      conditions.push(eq(delegateProfiles.fullPaymentStatus, filters.fullPaymentStatus));
+    }
+
+    const whereClause = and(...conditions);
 
     const userList = await this.db
       .select({ user: users, profile: delegateProfiles })
       .from(users)
       .leftJoin(delegateProfiles, eq(users.id, delegateProfiles.userId))
-      .where(eq(users.role, role))
+      .where(whereClause)
       .orderBy(users.createdAt)
       .limit(limit)
       .offset(offset)
@@ -46,7 +84,8 @@ export class AdminService {
     const totalResult = await this.db
       .select({ count: count() })
       .from(users)
-      .where(eq(users.role, role))
+      .leftJoin(delegateProfiles, eq(users.id, delegateProfiles.userId))
+      .where(whereClause)
       .get();
 
     return {

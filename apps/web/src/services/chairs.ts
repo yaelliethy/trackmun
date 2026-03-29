@@ -7,8 +7,17 @@ export interface UserListResponse {
 }
 
 export const chairsService = {
-  list: (page = 1, limit = 20) => 
-    api.get<UserListResponse>(`/admin/chairs?page=${page}&limit=${limit}`),
+  list: (page = 1, limit = 20, filters?: any) => {
+    let url = `/admin/chairs?page=${page}&limit=${limit}`;
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          url += `&${key}=${encodeURIComponent(String(value))}`;
+        }
+      });
+    }
+    return api.get<UserListResponse>(url);
+  },
   
   create: (data: any) =>
     api.post<User>(`/admin/chairs`, data),

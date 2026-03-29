@@ -109,6 +109,12 @@ export class RegistrationController {
     );
     return c.json({ success: true as const, data: result }, 200);
   };
+
+  getResponses = async (c: AdminContext) => {
+    const service = this.getService();
+    const result = await service.getResponses();
+    return c.json({ success: true as const, data: result }, 200);
+  };
 }
 
 export const registrationController = new RegistrationController();

@@ -13,7 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Edit, Trash2, UserSearch, ExternalLink, Users } from "lucide-react"
+import { Edit, Trash2, UserSearch, ExternalLink, Users, ClipboardList } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -22,6 +22,7 @@ interface UserTableProps {
   isLoading: boolean
   onEdit: (user: User) => void
   onDelete: (user: User) => void
+  onViewResponses?: (user: User) => void
   /** When false, the Council column is hidden (e.g. OC and Admins lists). Default true. */
   showCouncilColumn?: boolean
   onImpersonate?: (user: User) => void
@@ -61,6 +62,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   isLoading,
   onEdit,
   onDelete,
+  onViewResponses,
   showCouncilColumn = true,
   onImpersonate,
   onTogglePaymentStatus,
@@ -217,6 +219,23 @@ export const UserTable: React.FC<UserTableProps> = ({
                 {/* Actions */}
                 <TableCell className="pr-6 text-right align-middle">
                   <div className="flex justify-end gap-0.5">
+                    {onViewResponses && user.role === "delegate" && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-primary/70 hover:bg-primary/8 hover:text-primary"
+                            onClick={() => onViewResponses(user)}
+                            aria-label={`View responses for ${user.name}`}
+                          >
+                            <ClipboardList className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>View Responses</TooltipContent>
+                      </Tooltip>
+                    )}
+
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button

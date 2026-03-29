@@ -1,27 +1,38 @@
-version: '3.8'
-
 services:
+  sqld:
+    image: ghcr.io/tursodatabase/libsql-server:latest
+    container_name: trackmun-sqld
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./.sqld:/var/lib/sqld
+    environment:
+      - SQLD_LISTEN_ADDR=0.0.0.0:8080
+
   trackmun-dev:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: trackmun-dev
+    depends_on:
+      - sqld
     volumes:
       - .:/app
-      # Exclude host node_modules to prevent cross-platform binary compatibility issues
-      - /app/node_modules
-      - /app/apps/web/node_modules
-      - /app/apps/worker/node_modules
-      - /app/packages/shared/node_modules
     ports:
-      # Frontend Dev Server
       - "3000:3000"
-      # Worker Dev Server
       - "8787:8787"
     environment:
       - FORCE_COLOR=1
+      - TURSO_DATABASE_URL=http://trackmun-sqld:8080
+      - TURSO_AUTH_TOKEN=placeholder
+      - BETTER_AUTH_SECRET=test-better-auth-secret-32chars-minimum-12345
+      - BETTER_AUTH_URL=http://localhost:8787
+      - IMPERSONATION_SECRET=test-impersonation-secret-32chars-min-12345
+      - QR_SECRET=your-qr-secret-key-min-32-chars-5678
+      - FRONTEND_URL=http://localhost:3000
     command: >
-      sh -c "pnpm install && 
-             echo 'Setting up D1 database...' &&
-             pnpm --filter @trackmun/worker run db:migrate -- -y &&
+      sh -c "echo 'Waiting for sqld network to be ready...' &&
+             sleep 10 &&
+             echo 'Pushing database schema to sqld...' &&
+             pnpm --filter @trackmun/worker run db:push &&
              pnpm dev"

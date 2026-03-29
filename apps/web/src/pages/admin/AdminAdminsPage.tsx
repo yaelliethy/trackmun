@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { adminsService } from "../../services/admins"
 import { UserTable } from "../../components/admin/UserTable"
+import { UserFilters, UserFilterValues } from "../../components/admin/UserFilters"
 import { UserEditModal } from "../../components/admin/UserEditModal"
 import { UserDeleteModal } from "../../components/admin/UserDeleteModal"
 import { UserCreateModal } from "../../components/admin/UserCreateModal"
@@ -15,6 +16,7 @@ const PAGE_SIZE = 20
 
 export const AdminAdminsPage: React.FC = () => {
   const [page, setPage] = useState(1)
+  const [filters, setFilters] = useState<UserFilterValues>({})
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [deletingUser, setDeletingUser] = useState<User | null>(null)
   const [creatingUser, setCreatingUser] = useState(false)
@@ -22,9 +24,14 @@ export const AdminAdminsPage: React.FC = () => {
   const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admins", page],
-    queryFn: () => adminsService.list(page, PAGE_SIZE),
+    queryKey: ["admins", page, filters],
+    queryFn: () => adminsService.list(page, PAGE_SIZE, filters),
   })
+
+  const handleFiltersChange = (newFilters: UserFilterValues) => {
+    setFilters(newFilters)
+    setPage(1)
+  }
 
   const updateMutation = useMutation({
     mutationFn: ({
@@ -76,6 +83,7 @@ export const AdminAdminsPage: React.FC = () => {
         />
       }
     >
+      <UserFilters onFiltersChange={handleFiltersChange} />
       <UserTable
         users={data?.users ?? []}
         isLoading={isLoading}

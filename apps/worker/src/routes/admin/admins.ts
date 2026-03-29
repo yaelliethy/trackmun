@@ -20,6 +20,7 @@ routes.openapi(
       query: z.object({
         page: z.string().optional(),
         limit: z.string().optional(),
+        search: z.string().optional(),
       }),
     },
     responses: {

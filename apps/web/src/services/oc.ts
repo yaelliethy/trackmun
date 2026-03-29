@@ -7,8 +7,17 @@ export interface UserListResponse {
 }
 
 export const ocService = {
-  list: (page = 1, limit = 20) => 
-    api.get<UserListResponse>(`/admin/oc?page=${page}&limit=${limit}`),
+  list: (page = 1, limit = 20, filters?: any) => {
+    let url = `/admin/oc?page=${page}&limit=${limit}`;
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          url += `&${key}=${encodeURIComponent(String(value))}`;
+        }
+      });
+    }
+    return api.get<UserListResponse>(url);
+  },
   
   create: (data: any) =>
     api.post<User>(`/admin/oc`, data),

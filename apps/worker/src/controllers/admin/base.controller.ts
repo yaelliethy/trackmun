@@ -19,8 +19,16 @@ export class AdminController {
     const page = Number(c.req.query('page')) || 1;
     const limit = Number(c.req.query('limit')) || 20;
 
+    const filters = {
+      search: c.req.query('search'),
+      registrationStatus: c.req.query('registrationStatus') as any,
+      council: c.req.query('council'),
+      depositPaymentStatus: c.req.query('depositPaymentStatus') as any,
+      fullPaymentStatus: c.req.query('fullPaymentStatus') as any,
+    };
+
     const service = this.getService();
-    const result = await service.getUsersByRole(this.role, page, limit);
+    const result = await service.getUsersByRole(this.role, page, limit, filters);
 
     return c.json({ success: true as const, data: result }, 200);
   };

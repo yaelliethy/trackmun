@@ -7,8 +7,17 @@ export interface UserListResponse {
 }
 
 export const delegatesService = {
-  list: (page = 1, limit = 20) => 
-    api.get<UserListResponse>(`/admin/delegates?page=${page}&limit=${limit}`),
+  list: (page = 1, limit = 20, filters?: any) => {
+    let url = `/admin/delegates?page=${page}&limit=${limit}`;
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          url += `&${key}=${encodeURIComponent(String(value))}`;
+        }
+      });
+    }
+    return api.get<UserListResponse>(url);
+  },
   
   update: (id: string, data: { name?: string; council?: string | null }) =>
     api.patch<User>(`/admin/delegates/${id}`, data),

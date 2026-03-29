@@ -1,5 +1,5 @@
 import { api } from './api';
-import { RegistrationStep, RegistrationQuestion, Settings } from '@trackmun/shared';
+import { RegistrationStep, RegistrationQuestion, Settings, DelegateResponse } from '@trackmun/shared';
 
 export const adminRegistrationService = {
   getSettings: () => api.get<Settings>('/admin/registration/settings'),
@@ -14,4 +14,6 @@ export const adminRegistrationService = {
   createQuestion: (data: Omit<RegistrationQuestion, 'id'>) => api.post<RegistrationQuestion>('/admin/registration/questions', data),
   updateQuestion: (id: string, data: Partial<RegistrationQuestion>) => api.put<null>(`/admin/registration/questions/${id}`, data),
   deleteQuestion: (id: string) => api.delete<null>(`/admin/registration/questions/${id}`),
+
+  getResponses: () => api.get<DelegateResponse[]>('/admin/registration/responses'),
 };
