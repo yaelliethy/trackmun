@@ -15,8 +15,12 @@ import app from '#src/index';
 
 function testBindings(): Bindings {
   return {
-    DB: {} as D1Database,
+    TURSO_DATABASE_URL: 'libsql://test.turso.io',
+    TURSO_AUTH_TOKEN: 'mock-token',
     MEDIA: {} as R2Bucket,
+    R2_ACCESS_KEY_ID: 'mock-access-key',
+    R2_SECRET_ACCESS_KEY: 'mock-secret-key',
+    R2_ENDPOINT: 'mock-endpoint',
     BETTER_AUTH_SECRET: 'test-better-auth-secret-32chars-minimum',
     BETTER_AUTH_URL: 'http://127.0.0.1:8787',
     FRONTEND_URL: 'http://localhost:5173',

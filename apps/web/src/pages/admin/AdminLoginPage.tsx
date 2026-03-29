@@ -5,18 +5,10 @@ import { useLocation, useNavigate, Link } from "react-router-dom"
 import { useAuthStore } from "../../hooks/useAuthStore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import brand from "@/config/brand"
 import { motion } from "framer-motion"
-import { AlertCircle, ArrowRight, Shield } from "lucide-react"
+import { AlertCircle, ArrowRight, Lock } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
 
 export const AdminLoginPage: React.FC = () => {
@@ -41,10 +33,7 @@ export const AdminLoginPage: React.FC = () => {
     try {
       const loginRes = await api.post<{ token: string; user: User }>(
         "/auth/sign-in/email",
-        {
-          email,
-          password,
-        }
+        { email, password }
       )
 
       localStorage.setItem("refresh_token", loginRes.token)
@@ -57,7 +46,7 @@ export const AdminLoginPage: React.FC = () => {
       if (user.role !== "admin") {
         localStorage.removeItem("auth_token")
         localStorage.removeItem("refresh_token")
-        setError("Access denied. Admin privileges required.")
+        setError("Access denied. Administrator credentials required.")
         setLoading(false)
         return
       }
@@ -69,7 +58,7 @@ export const AdminLoginPage: React.FC = () => {
           : "/admin/delegates"
       navigate(target, { replace: true })
     } catch {
-      setError("Invalid email or password. Check your credentials and try again.")
+      setError("Invalid email or password. Please check your credentials and try again.")
     } finally {
       setLoading(false)
     }
@@ -80,166 +69,162 @@ export const AdminLoginPage: React.FC = () => {
       <div className="absolute right-4 top-4 z-50 sm:right-6 sm:top-6">
         <ModeToggle />
       </div>
-      <div className="grid min-h-screen lg:grid-cols-2">
+
+      <div className="grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
+        {/* ── Left: Admin brand panel ── */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0, x: -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           className="relative hidden flex-col justify-between overflow-hidden bg-primary p-10 text-primary-foreground lg:flex lg:p-14"
         >
-          <div
-            className="pointer-events-none absolute inset-0 opacity-40"
-            aria-hidden
-          >
-            <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-primary-foreground/10 blur-3xl" />
-            <div className="absolute -bottom-32 -right-24 h-[28rem] w-[28rem] rounded-full bg-primary-foreground/5 blur-3xl" />
-          </div>
+          {/* Fine dot grid texture */}
+          <div className="pointer-events-none absolute inset-0 bg-dot-pattern opacity-60" aria-hidden />
+          <div className="auth-panel-line absolute left-[18%] inset-y-0 h-full" aria-hidden />
+          <div className="auth-panel-line absolute right-[22%] inset-y-0 h-full opacity-40" aria-hidden />
+
+          {/* Wordmark */}
           <div className="relative z-10 flex items-center gap-3">
             <img
               src={brand.logoPath}
               alt=""
-              className="h-11 w-11 rounded-xl bg-primary-foreground/10 p-2"
+              className="h-9 w-9 rounded-md bg-primary-foreground/10 p-1.5 object-contain"
             />
             <div>
-              <p className="text-lg font-semibold tracking-tight">
-                {brand.appName}
-              </p>
-              <p className="text-sm text-primary-foreground/80">
-                Conference operations, refined.
+              <p className="text-base font-semibold tracking-tight">{brand.appName}</p>
+              <p className="text-xs text-primary-foreground/60 tracking-wide">
+                Administration Console
               </p>
             </div>
           </div>
-          <div className="relative z-10 max-w-md space-y-8">
-            <h2 className="text-3xl font-bold leading-tight tracking-tight md:text-4xl">
-              Sign in to the admin console
-            </h2>
-            <p className="text-base leading-relaxed text-primary-foreground/85">
-              Manage delegates, OC, and chairs from one calm, focused workspace
-              built for conference teams.
+
+          {/* Main copy */}
+          <div className="relative z-10 max-w-sm space-y-6">
+            <div className="space-y-1">
+              <p className="text-xs tracking-caps text-primary-foreground/50">
+                Restricted Access
+              </p>
+              <h2 className="text-3xl font-bold leading-tight tracking-tight lg:text-4xl">
+                Manage your<br />conference operations.
+              </h2>
+            </div>
+            <p className="text-sm leading-relaxed text-primary-foreground/70">
+              The administration console gives you complete oversight of
+              delegates, staff, attendance, and conference configuration.
             </p>
-            <ul className="space-y-4 text-sm text-primary-foreground/90">
-              <li className="flex gap-3">
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-foreground/15">
-                  <Shield className="h-4 w-4" aria-hidden />
-                </span>
-                <span>
-                  <span className="font-medium text-primary-foreground">
-                    Role-aware access
-                  </span>
-                  <span className="block text-primary-foreground/75">
-                    Only administrators can open this console.
-                  </span>
-                </span>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-foreground/15">
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </span>
-                <span>
-                  <span className="font-medium text-primary-foreground">
-                    Pick up where you left off
-                  </span>
-                  <span className="block text-primary-foreground/75">
-                    After sign-in you return to the page you tried to open.
-                  </span>
-                </span>
-              </li>
-            </ul>
+            <div className="flex items-center gap-2.5 text-xs text-primary-foreground/50">
+              <Lock className="h-3.5 w-3.5 shrink-0" />
+              <span>Protected area. Activity may be logged for security purposes.</span>
+            </div>
           </div>
-          <p className="relative z-10 text-xs text-primary-foreground/60">
-            Protected area. Activity may be logged for security.
+
+          <p className="relative z-10 text-[11px] text-primary-foreground/40">
+            Administrator access only. Unauthorized entry is prohibited.
           </p>
         </motion.div>
 
-        <div className="flex flex-col justify-center px-4 py-12 sm:px-8 lg:px-12 xl:px-20">
-          <div className="mx-auto w-full max-w-md space-y-8">
+        {/* ── Right: Form panel ── */}
+        <div className="flex flex-col justify-center px-6 py-12 sm:px-10 lg:px-16 xl:px-24">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.08 }}
+            className="mx-auto w-full max-w-sm space-y-10"
+          >
+            {/* Mobile wordmark */}
             <div className="flex items-center gap-3 lg:hidden">
               <img
                 src={brand.logoPath}
                 alt=""
-                className="h-10 w-10 rounded-lg border border-border bg-card object-contain p-1.5"
+                className="h-9 w-9 rounded-md border border-border object-contain p-1.5"
               />
               <div>
-                <p className="text-base font-semibold">{brand.appName}</p>
-                <p className="text-sm text-muted-foreground">Admin sign in</p>
+                <p className="text-sm font-semibold">{brand.appName}</p>
+                <p className="text-xs text-muted-foreground">Administration Console</p>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                Welcome back
+            {/* Heading */}
+            <div className="space-y-1.5">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                Administrator sign in
               </h1>
-              <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Enter your administrator email and password to continue.
+              <p className="text-sm text-muted-foreground">
+                Enter the credentials provided by your conference team.
               </p>
             </div>
 
-            <Card className="border-border/80 shadow-lg shadow-primary/5">
-              <CardHeader className="space-y-1 pb-4">
-                <CardTitle className="text-xl font-semibold">
-                  Admin login
-                </CardTitle>
-                <CardDescription>
-                  Use the credentials issued by your conference team.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleLogin} className="space-y-5" noValidate>
-                  {error ? (
-                    <Alert variant="destructive" aria-live="assertive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Could not sign you in</AlertTitle>
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  ) : null}
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      placeholder="you@organization.org"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="h-11"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="h-11"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="h-11 w-full text-base font-semibold"
-                    isLoading={loading}
-                  >
+            {/* Error message */}
+            {error && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleLogin} className="space-y-5" noValidate>
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@organization.org"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="h-11"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-sm font-medium text-foreground">
+                  Password
+                </Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-11"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="h-11 w-full font-semibold"
+                isLoading={loading}
+              >
+                {!loading && (
+                  <>
                     Continue
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </form>
 
-            <div className="text-center text-xs leading-relaxed text-muted-foreground">
-              <p className="mb-2">Need access? Contact your conference administrator.</p>
-              <p>
-                Are you a delegate?{" "}
-                <Link to="/register" className="font-medium text-primary hover:underline">
-                  Create your account
-                </Link>
-              </p>
-            </div>
-          </div>
+            <p className="text-center text-xs text-muted-foreground">
+              Are you a delegate?{" "}
+              <Link
+                to="/register"
+                className="font-medium text-primary hover:underline underline-offset-4"
+              >
+                Create your account
+              </Link>
+            </p>
+          </motion.div>
         </div>
       </div>
     </div>

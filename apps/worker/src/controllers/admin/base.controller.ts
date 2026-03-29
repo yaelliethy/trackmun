@@ -42,12 +42,16 @@ export class AdminController {
         return c.json({ success: false as const, error: 'Failed to create user' }, 400);
       }
 
-      // better-auth signUpEmail ignores role/council in the body, 
       // so we promote the user to the specific format using our admin service.
       const service = this.getService();
+      
+      const shouldBeVerified = ['admin', 'chair', 'oc'].includes(this.role);
+
       const updatedUser = await service.updateUser(res.user.id, {
-        role: this.role,
+        role: this.role as any,
         council: body.council,
+        // @ts-ignore
+        emailVerified: shouldBeVerified ? true : undefined,
       });
 
       return c.json({ success: true as const, data: updatedUser }, 201);

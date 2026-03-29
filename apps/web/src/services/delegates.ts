@@ -15,4 +15,7 @@ export const delegatesService = {
   
   delete: (id: string) =>
     api.delete<null>(`/admin/delegates/${id}`),
+
+  updatePaymentStatus: (id: string, data: { depositPaymentStatus?: 'pending' | 'paid'; fullPaymentStatus?: 'pending' | 'paid' }) =>
+    api.patch<null>(`/admin/delegates/${id}/payments`, data),
 };

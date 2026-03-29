@@ -8,10 +8,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
@@ -40,56 +36,58 @@ export function AdminDataPageLayout({
 }: AdminDataPageLayoutProps) {
   return (
     <div className={cn("space-y-8", className)}>
+      {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link to="/admin/delegates">Admin</Link>
+              <Link to="/admin/delegates" className="text-muted-foreground hover:text-foreground transition-colors">
+                Admin
+              </Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{breadcrumbCurrent}</BreadcrumbPage>
+            <BreadcrumbPage className="font-medium">{breadcrumbCurrent}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-2xl space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            {title}
-          </h1>
-          <p className="text-base leading-relaxed text-muted-foreground">
-            {description}
-          </p>
-        </div>
-        {(totalCount !== undefined || isLoadingTotal) && (
-          <div className="flex shrink-0 flex-col gap-1 rounded-xl border border-border/80 bg-card px-6 py-4 text-left shadow-sm">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Total records
-            </span>
-            {isLoadingTotal ? (
-              <Skeleton className="h-9 w-16" />
-            ) : (
-              <span className="text-3xl font-semibold tabular-nums text-foreground">
-                {totalCount}
+      {/* Page header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 max-w-2xl space-y-1.5">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {title}
+            </h1>
+            {(totalCount !== undefined || isLoadingTotal) && (
+              <span className="rounded border border-border bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground tabular-nums">
+                {isLoadingTotal ? (
+                  <Skeleton className="inline-block h-3.5 w-8" />
+                ) : (
+                  totalCount
+                )}
               </span>
             )}
           </div>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        {action && (
+          <div className="flex shrink-0 items-start">{action}</div>
         )}
       </div>
 
-      {action && (
-        <div className="flex items-center justify-end">
-          {action}
-        </div>
+      {/* Table/content area — no card wrapper, clean border */}
+      <div className="overflow-hidden rounded-md border border-border/70 bg-card shadow-sm">
+        {children}
+      </div>
+
+      {/* Footer (pagination) */}
+      {footer && (
+        <div className="flex justify-center pb-2">{footer}</div>
       )}
-
-      <Card className="overflow-hidden border-border/60 shadow-sm">
-        <CardContent className="p-0">{children}</CardContent>
-      </Card>
-
-      {footer ? <div className="flex justify-center pb-2">{footer}</div> : null}
     </div>
   )
 }

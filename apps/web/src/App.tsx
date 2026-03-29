@@ -1,11 +1,15 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
+import { LoginPage } from './pages/auth/LoginPage';
+import { DelegateDashboardPage } from './pages/delegate/DelegateDashboardPage';
 import { AdminDelegatesPage } from './pages/admin/AdminDelegatesPage';
 import { AdminOCPage } from './pages/admin/AdminOCPage';
 import { AdminChairsPage } from './pages/admin/AdminChairsPage';
 import { AdminAdminsPage } from './pages/admin/AdminAdminsPage';
 import { AdminBenefitsPage } from './pages/admin/AdminBenefitsPage';
 import { AdminAttendancePage } from './pages/admin/AdminAttendancePage';
+import { AdminRegistrationPage } from './pages/admin/AdminRegistrationPage';
+import { AdminCouncilsPage } from './pages/admin/AdminCouncilsPage';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { NotFoundPage, ForbiddenPage } from './pages/error/ErrorPage';
@@ -19,10 +23,19 @@ function App() {
         {/* Public Auth Routes */}
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/register/success" element={<RegistrationSuccessPage />} />
-        <Route path="/login" element={<AdminLoginPage />} />
+        <Route path="/login" element={<LoginPage />} />
 
         {/* Public Admin Routes */}
         <Route path="/admin/login" element={<AdminLoginPage />} />
+
+        {/* Protected Delegate Routes */}
+        <Route path="/delegate" element={
+          <ProtectedRoute>
+            <DelegateDashboardPage />
+          </ProtectedRoute>
+        }>
+          <Route path="dashboard" element={<DelegateDashboardPage />} />
+        </Route>
 
         {/* Protected Admin Routes */}
         <Route path="/admin" element={
@@ -37,6 +50,8 @@ function App() {
           <Route path="admins" element={<AdminAdminsPage />} />
           <Route path="benefits" element={<AdminBenefitsPage />} />
           <Route path="attendance" element={<AdminAttendancePage />} />
+          <Route path="registration" element={<AdminRegistrationPage />} />
+          <Route path="councils" element={<AdminCouncilsPage />} />
         </Route>
 
         {/* Error Routes */}

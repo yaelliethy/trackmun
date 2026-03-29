@@ -72,6 +72,7 @@ async function fetchUserFromD1(userId: string): Promise<User | null> {
     email: user.email,
     name: user.name,
     role: user.role as UserRole,
+    registrationStatus: user.registrationStatus as "pending" | "approved" | "rejected",
     council: user.council || undefined,
     created_at:
       user.createdAt instanceof Date ? user.createdAt.getTime() : user.createdAt,

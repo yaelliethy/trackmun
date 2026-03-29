@@ -90,6 +90,7 @@ export const AdminOCPage: React.FC = () => {
       <UserTable
         users={data?.users ?? []}
         isLoading={isLoading}
+        showCouncilColumn={false}
         onEdit={setEditingUser}
         onDelete={setDeletingUser}
         onImpersonate={handleImpersonate}

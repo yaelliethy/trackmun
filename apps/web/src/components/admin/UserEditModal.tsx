@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { User } from "@trackmun/shared"
+import { useQuery } from "@tanstack/react-query"
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { councilsService } from "../../services/councils"
+
+const NONE = "__none__"
 
 interface UserEditModalProps {
   user: User | null
@@ -19,7 +30,7 @@ interface UserEditModalProps {
   onClose: () => void
   onSave: (
     id: string,
-    data: { name: string; council: string | null }
+    data: { name: string; council?: string | null }
   ) => Promise<void>
 }
 
@@ -33,10 +44,19 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
   const [council, setCouncil] = useState("")
   const [loading, setLoading] = useState(false)
 
+  const showCouncilSelect =
+    user?.role === "delegate" || user?.role === "chair"
+
+  const { data: councilList = [], isLoading: councilsLoading } = useQuery({
+    queryKey: ["admin-councils"],
+    queryFn: councilsService.list,
+    enabled: isOpen && showCouncilSelect,
+  })
+
   useEffect(() => {
     if (user) {
       setName(user.name)
-      setCouncil(user.council || "")
+      setCouncil(user.council?.trim() ? user.council : "")
     }
   }, [user])
 
@@ -46,7 +66,11 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
     try {
       await onSave(user.id, {
         name,
-        council: council.trim() === "" ? null : council,
+        council: showCouncilSelect
+          ? council.trim() === ""
+            ? null
+            : council.trim()
+          : null,
       })
       onClose()
     } catch (err) {
@@ -64,8 +88,9 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
             Edit user
           </DialogTitle>
           <DialogDescription className="text-sm leading-relaxed">
-            Update display name and council assignment. Email cannot be changed
-            here.
+            {showCouncilSelect
+              ? "Update display name and council assignment. Email cannot be changed here."
+              : "Update display name. Email cannot be changed here."}
           </DialogDescription>
           {user?.email ? (
             <p className="truncate pt-1 text-xs font-medium text-muted-foreground">
@@ -85,19 +110,34 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                 className="h-10"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-council">Council</Label>
-              <Input
-                id="edit-council"
-                value={council}
-                onChange={(e) => setCouncil(e.target.value)}
-                placeholder="e.g. UNSC, DISEC"
-                className="h-10"
-              />
-              <p className="text-xs text-muted-foreground">
-                Leave blank if this user is not assigned to a committee.
-              </p>
-            </div>
+            {showCouncilSelect && (
+              <div className="grid gap-2">
+                <Label htmlFor="edit-council">Council</Label>
+                {councilsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading councils…</p>
+                ) : (
+                  <Select
+                    value={council.trim() ? council : NONE}
+                    onValueChange={(v) => setCouncil(v === NONE ? "" : v)}
+                  >
+                    <SelectTrigger id="edit-council" className="h-10">
+                      <SelectValue placeholder="Select a council" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>None</SelectItem>
+                      {councilList.map((c) => (
+                        <SelectItem key={c.id} value={c.name}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Manage the list under Administration → Councils.
+                </p>
+              </div>
+            )}
           </div>
         </div>
         <Separator />

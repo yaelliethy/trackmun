@@ -15,13 +15,29 @@ export function initializeDb(config: TursoConfig) {
     return dbInstance!;
   }
 
-  clientInstance = createClient({
-    url: config.url,
-    authToken: config.authToken,
-  });
+  // For Docker local networking, replace localhost with the service name
+  const finalUrl = config.url.includes('localhost') && config.url.includes('8080')
+    ? config.url.replace('localhost', 'trackmun-sqld')
+    : config.url;
 
-  dbInstance = drizzle(clientInstance, { schema });
-  return dbInstance;
+  console.log(`Initializing database with URL: ${finalUrl}`);
+
+  if (!finalUrl) {
+    throw new Error('TURSO_DATABASE_URL is missing in environment variables.');
+  }
+
+  try {
+    clientInstance = createClient({
+      url: finalUrl,
+      authToken: config.authToken,
+    });
+
+    dbInstance = drizzle(clientInstance, { schema });
+    return dbInstance;
+  } catch (error: any) {
+    console.error(`Failed to initialize LibSQL client with URL: ${config.url}`);
+    throw error;
+  }
 }
 
 export function getDb(): DbType {

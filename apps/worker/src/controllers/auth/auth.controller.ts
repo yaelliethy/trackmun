@@ -4,14 +4,27 @@ import { Bindings } from '../../types/env';
 import { AuthContext } from '../../middleware/auth';
 import { getDb } from '../../db/client';
 import { RegisterUser } from '@trackmun/shared';
+import { RegistrationService } from '../../services/admin/registration.service';
 
 export class AuthController {
   private getService() {
     return new AuthService(getDb());
   }
 
-  register = async (c: Context<{ Bindings: Bindings }>) => {
+  register = async (c: Context<{ Bindings: Bindings; Variables: AuthContext }>) => {
     const body = await c.req.json<RegisterUser>();
+    const registrationSettings = await new RegistrationService(getDb()).getSettings();
+    if (registrationSettings.registration_enabled === false) {
+      return c.json(
+        {
+          success: false,
+          error: 'Delegate registration is currently closed.',
+          code: 'REGISTRATION_DISABLED',
+        },
+        403
+      );
+    }
+
     const service = this.getService();
 
     try {

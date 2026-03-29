@@ -2,7 +2,7 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { Bindings } from '../../types/env';
 import { AuthContext, withAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
-import { UserSchema, UpdateUserSchema } from '@trackmun/shared';
+import { UserSchema, UpdateUserSchema, UpdateDelegatePaymentSchema } from '@trackmun/shared';
 import { delegatesController } from '../../controllers/admin/delegates.controller';
 
 const routes = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
@@ -101,6 +101,23 @@ routes.openapi(
     summary: 'Delete delegate',
   }),
   delegatesController.deleteUser
+);
+
+routes.openapi(
+  createRoute({
+    method: 'patch',
+    path: '/{id}/payments',
+    request: {
+      params: z.object({ id: z.string() }),
+      body: { content: { 'application/json': { schema: UpdateDelegatePaymentSchema } } },
+    },
+    responses: {
+      200: { description: 'Update payment status', content: { 'application/json': { schema: z.object({ success: z.literal(true), data: z.null() }) } } },
+      404: { description: 'Delegate not found', content: { 'application/json': { schema: z.object({ success: z.literal(false), error: z.string() }) } } },
+    },
+    summary: 'Update delegate payment',
+  }),
+  delegatesController.updatePayment
 );
 
 export default routes;

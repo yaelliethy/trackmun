@@ -4,6 +4,9 @@ export type Bindings = {
   TURSO_AUTH_TOKEN: string;
   // Cloudflare R2
   MEDIA: R2Bucket;
+  R2_ACCESS_KEY_ID: string;
+  R2_SECRET_ACCESS_KEY: string;
+  R2_ENDPOINT: string;
   // Better Auth
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;

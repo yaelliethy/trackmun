@@ -79,6 +79,7 @@ export const AdminAdminsPage: React.FC = () => {
       <UserTable
         users={data?.users ?? []}
         isLoading={isLoading}
+        showCouncilColumn={false}
         onEdit={setEditingUser}
         onDelete={setDeletingUser}
       />

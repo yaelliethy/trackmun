@@ -1,117 +1,209 @@
+/* ─── Google Fonts ──────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design Tokens ─────────────────────────────────────────── */
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 47% 11%;
+    /* Surfaces */
+    --background:    214 20% 98%;
+    --foreground:    214 40% 10%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 47% 11%;
+    --card:          0 0% 100%;
+    --card-foreground: 214 40% 10%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47% 11%;
+    --popover:       0 0% 100%;
+    --popover-foreground: 214 40% 10%;
 
-    /* Brand Primary: #04316c -> HSL(214, 93%, 22%) */
-    --primary: 214 93% 22%;
-    --primary-foreground: 210 40% 98%;
+    /* Brand — deep navy #04316c */
+    --primary:           214 93% 22%;
+    --primary-foreground: 210 40% 97%;
 
-    --secondary: 214 32% 94%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary — pale blue-tinted surface */
+    --secondary:         214 28% 93%;
+    --secondary-foreground: 214 40% 14%;
 
-    --muted: 214 28% 94%;
-    --muted-foreground: 215 16% 42%;
+    /* Muted — very light blue-gray */
+    --muted:             214 22% 95%;
+    --muted-foreground:  214 16% 46%;
 
-    --accent: 214 40% 96%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent — slightly elevated surface */
+    --accent:            214 28% 93%;
+    --accent-foreground: 214 40% 14%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Semantic */
+    --destructive:           0 76% 56%;
+    --destructive-foreground: 0 0% 98%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 26 83% 14%;
+    --warning:           38 88% 50%;
+    --warning-foreground: 28 80% 16%;
 
-    --success: 142 71% 36%;
-    --success-foreground: 144 61% 98%;
+    --success:           142 65% 34%;
+    --success-foreground: 144 60% 97%;
 
-    --border: 214 24% 88%;
-    --input: 214 24% 88%;
-    --ring: 214 93% 22%;
+    /* Borders & inputs */
+    --border: 214 20% 88%;
+    --input:  214 20% 88%;
+    --ring:   214 93% 22%;
 
-    --sidebar: 0 0% 100%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-border: 220 13% 91%;
+    /* Sidebar */
+    --sidebar-background:          218 30% 97%;
+    --sidebar-foreground:          214 35% 22%;
+    --sidebar-border:              214 20% 88%;
+    --sidebar-primary:             214 93% 22%;
+    --sidebar-primary-foreground:  210 40% 97%;
+    --sidebar-accent:              214 25% 92%;
+    --sidebar-accent-foreground:   214 40% 14%;
+    --sidebar-ring:                214 93% 22%;
 
-    --radius: 0.625rem;
+    /* Radius — sharper, editorial feel */
+    --radius: 0.375rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Transition tokens */
+    --transition-fast: 140ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 220ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background:    214 28% 7%;
+    --foreground:    214 15% 93%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card:          214 26% 9%;
+    --card-foreground: 214 15% 93%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover:       214 26% 9%;
+    --popover-foreground: 214 15% 93%;
+    /* Primary brightened for dark surfaces
+    --primary:           214 78% 55%;
+    --primary-foreground: 214 30% 6%; */
+    /* Primary — keep #04316c in dark mode with white text */
+    --primary:           214 93% 22%;
+    --primary-foreground: 210 40% 97%;
 
-    /* Keep brand primary in dark mode (readable on dark surfaces) */
-    --primary: 214 88% 56%;
-    --primary-foreground: 210 40% 98%;
+    --secondary:         214 22% 14%;
+    --secondary-foreground: 214 15% 90%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --muted:             214 22% 13%;
+    --muted-foreground:  214 14% 55%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --accent:            214 22% 14%;
+    --accent-foreground: 214 15% 90%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --destructive:           0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --warning:           38 88% 50%;
+    --warning-foreground: 38 90% 92%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --success:           142 55% 42%;
+    --success-foreground: 144 60% 97%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 48 96% 89%;
+    --border: 214 20% 16%;
+    --input:  214 20% 16%;
+    --ring:   214 78% 55%;
 
-    --success: 142 71% 45%;
-    --success-foreground: 144 61% 98%;
-
-    --sidebar: 222.2 47% 8%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background:          214 26% 6%;
+    --sidebar-foreground:          214 14% 80%;
+    --sidebar-border:              214 20% 14%;
+    --sidebar-primary:             214 78% 55%;
+    --sidebar-primary-foreground:  214 30% 6%;
+    --sidebar-accent:              214 22% 13%;
+    --sidebar-accent-foreground:   214 15% 90%;
+    --sidebar-ring:                214 78% 55%;
   }
 }
 
+/* ─── Base Styles ───────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+
+  html {
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    font-optical-sizing: auto;
+  }
+
+  /* Smooth scrolling */
+  * {
+    scroll-behavior: smooth;
+  }
+
+  /* Focus ring — accessible but minimal */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: calc(var(--radius) - 1px);
+  }
+}
+
+/* ─── Custom Utilities ──────────────────────────────────────── */
+@layer utilities {
+  /* Tighter letter-spacing for uppercase labels */
+  .tracking-caps {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  /* Subtle auth panel texture — fine dot grid */
+  .bg-dot-pattern {
+    background-image: radial-gradient(
+      circle,
+      hsl(var(--primary-foreground) / 0.12) 1px,
+      transparent 1px
+    );
+    background-size: 24px 24px;
+  }
+
+  /* Auth panel geometric accent line */
+  .auth-panel-line {
+    position: absolute;
+    width: 1px;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      hsl(var(--primary-foreground) / 0.25) 30%,
+      hsl(var(--primary-foreground) / 0.25) 70%,
+      transparent
+    );
+  }
+}
+
+/* ─── Keyframes ─────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes accordion-down {
+  from { height: 0; }
+  to   { height: var(--radix-accordion-content-height); }
+}
+
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to   { height: 0; }
 }

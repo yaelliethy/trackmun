@@ -12,8 +12,22 @@ import setupRoutes from './routes/admin/setup';
 import benefitsRoutes from './routes/admin/benefits';
 import attendanceRoutes from './routes/admin/attendance';
 import adminsRoutes from './routes/admin/admins';
+import adminRegistrationRoutes from './routes/admin/registration';
+import councilsRoutes from './routes/admin/councils';
+import publicRegistrationRoutes from './routes/registration';
+import uploadRoutes from './routes/upload';
 
 const app = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
+
+// Global error handler
+app.onError((err, c) => {
+  console.error(`Unhandled error: ${err.message}`, err);
+  return c.json({
+    success: false,
+    error: err.message || 'Internal Server Error',
+    code: 'INTERNAL_SERVER_ERROR'
+  }, 500);
+});
 
 // Initialize database middleware
 app.use('*', async (c, next) => {
@@ -39,7 +53,7 @@ app.use('*', async (c, next) => {
       /\.pages\.dev$/
     ],
     allowHeaders: ['Authorization', 'Content-Type'],
-    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     exposeHeaders: ['set-auth-jwt'],
     credentials: true,
   });
@@ -96,5 +110,9 @@ app.route('/admin/setup', setupRoutes);
 app.route('/admin/benefits', benefitsRoutes);
 app.route('/admin/attendance', attendanceRoutes);
 app.route('/admin/admins', adminsRoutes);
+app.route('/admin/registration', adminRegistrationRoutes);
+app.route('/admin/councils', councilsRoutes);
+app.route('/registration', publicRegistrationRoutes);
+app.route('/upload', uploadRoutes);
 
 export default app;

@@ -47,12 +47,16 @@ describe('AdminService', () => {
     const createdAt = new Date('2025-06-01T00:00:00.000Z');
     selectChain.all.mockResolvedValue([
       {
-        id: 'u1',
-        email: 'd@x.com',
-        name: 'Del',
-        role: 'delegate',
-        council: null,
-        createdAt,
+        user: {
+          id: 'u1',
+          email: 'd@x.com',
+          name: 'Del',
+          role: 'delegate',
+          council: null,
+          registrationStatus: 'pending',
+          createdAt,
+        },
+        profile: null,
       },
     ]);
     selectChain.get.mockResolvedValue({ count: 42 });
@@ -62,11 +66,12 @@ describe('AdminService', () => {
 
     expect(result.total).toBe(42);
     expect(result.users).toHaveLength(1);
-    expect(result.users[0]).toEqual({
+    expect(result.users[0]).toMatchObject({
       id: 'u1',
       email: 'd@x.com',
       name: 'Del',
       role: 'delegate',
+      registrationStatus: 'pending',
       created_at: createdAt.getTime(),
     });
     expect(result.users[0].council).toBeUndefined();
@@ -75,24 +80,29 @@ describe('AdminService', () => {
   it('updateUser returns user without DB update when input is empty', async () => {
     const createdAt = new Date();
     selectChain.get.mockResolvedValue({
-      id: 'u1',
-      email: 'e@e.com',
-      name: 'N',
-      role: 'oc',
-      council: 'GA',
-      createdAt,
+      user: {
+        id: 'u1',
+        email: 'e@e.com',
+        name: 'N',
+        role: 'oc',
+        council: 'GA',
+        registrationStatus: 'approved',
+        createdAt,
+      },
+      profile: null,
     });
 
     const service = new AdminService(mockDb as DbType);
     const user = await service.updateUser('u1', {});
 
     expect(mockDb.update).not.toHaveBeenCalled();
-    expect(user).toEqual({
+    expect(user).toMatchObject({
       id: 'u1',
       email: 'e@e.com',
       name: 'N',
       role: 'oc',
       council: 'GA',
+      registrationStatus: 'approved',
       created_at: createdAt.getTime(),
     });
   });
@@ -100,12 +110,16 @@ describe('AdminService', () => {
   it('updateUser applies partial updates', async () => {
     const createdAt = new Date();
     selectChain.get.mockResolvedValue({
-      id: 'u1',
-      email: 'e@e.com',
-      name: 'New',
-      role: 'chair',
-      council: null,
-      createdAt,
+      user: {
+        id: 'u1',
+        email: 'e@e.com',
+        name: 'New',
+        role: 'chair',
+        council: null,
+        registrationStatus: 'approved',
+        createdAt,
+      },
+      profile: null,
     });
 
     const service = new AdminService(mockDb as DbType);
@@ -123,9 +137,11 @@ describe('AdminService', () => {
     expect(deleteRun).not.toHaveBeenCalled();
   });
 
-  it('deleteUser deletes other user', async () => {
+  it('deleteUser deletes dependent rows then the user', async () => {
+    selectChain.all.mockResolvedValue([]);
     const service = new AdminService(mockDb as DbType);
     await expect(service.deleteUser('victim', 'admin')).resolves.toBe(true);
-    expect(deleteRun).toHaveBeenCalled();
+    expect(mockDb.delete).toHaveBeenCalled();
+    expect(deleteRun.mock.calls.length).toBeGreaterThanOrEqual(10);
   });
 });

@@ -1,7 +1,8 @@
 import React, { useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import { useQuery } from "@tanstack/react-query"
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { councilsService } from "../../services/councils"
+
+const NONE = "__none__"
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -38,11 +49,19 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
   onSave,
 }) => {
   const [loading, setLoading] = useState(false)
+  const showCouncilSelect = role === "chair"
+
+  const { data: councilList = [], isLoading: councilsLoading } = useQuery({
+    queryKey: ["admin-councils"],
+    queryFn: councilsService.list,
+    enabled: isOpen && showCouncilSelect,
+  })
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -54,7 +73,6 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
     },
   })
 
-  // Whenever modal opens/closes, reset form
   React.useEffect(() => {
     if (isOpen) {
       reset()
@@ -67,7 +85,10 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
       await onSave({
         ...data,
         role,
-        council: data.council?.trim() === "" ? undefined : data.council,
+        council:
+          showCouncilSelect && data.council?.trim()
+            ? data.council.trim()
+            : undefined,
       })
       onClose()
     } catch (err) {
@@ -126,19 +147,40 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
                 {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="create-council">Council (Optional)</Label>
-                <Input
-                  id="create-council"
-                  placeholder="e.g. UNSC, DISEC"
-                  className="h-10"
-                  {...register("council")}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Leave blank if this user is not assigned to a specific committee.
-                </p>
-                {errors.council && <p className="text-xs text-destructive">{errors.council.message}</p>}
-              </div>
+              {showCouncilSelect && (
+                <div className="grid gap-2">
+                  <Label htmlFor="create-council">Council</Label>
+                  {councilsLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading councils…</p>
+                  ) : (
+                    <Controller
+                      name="council"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={field.value?.trim() ? field.value : NONE}
+                          onValueChange={(v) => field.onChange(v === NONE ? "" : v)}
+                        >
+                          <SelectTrigger id="create-council" className="h-10">
+                            <SelectValue placeholder="Select a council" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NONE}>None</SelectItem>
+                            {councilList.map((c) => (
+                              <SelectItem key={c.id} value={c.name}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Manage the list under Administration → Councils.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           <Separator />

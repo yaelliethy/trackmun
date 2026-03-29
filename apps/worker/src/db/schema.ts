@@ -57,7 +57,75 @@ export const delegateProfiles = sqliteTable('delegate_profiles', {
   firstChoice: text('first_choice'),
   secondChoice: text('second_choice'),
   awards: text('awards').default('[]'), // JSON array
+  depositAmount: integer('deposit_amount'),
+  fullAmount: integer('full_amount'),
+  depositPaymentStatus: text('deposit_payment_status', { enum: ['pending', 'paid'] }).notNull().default('pending'),
+  fullPaymentStatus: text('full_payment_status', { enum: ['pending', 'paid'] }).notNull().default('pending'),
+  paymentProofR2Key: text('payment_proof_r2_key'),
 });
+
+// Councils (managed by admin; referenced by user.council as committee name)
+export const councils = sqliteTable(
+  'councils',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull().unique(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  },
+  (table) => ({
+    nameIdx: index('idx_councils_name').on(table.name),
+  })
+);
+
+// Registration Settings
+export const settings = sqliteTable('settings', {
+  id: text('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  value: text('value').notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+});
+
+// Registration Steps
+export const registrationSteps = sqliteTable('registration_steps', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description'),
+  order: integer('order').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+});
+
+// Registration Questions
+export const registrationQuestions = sqliteTable('registration_questions', {
+  id: text('id').primaryKey(),
+  stepId: text('step_id').notNull().references(() => registrationSteps.id, { onDelete: 'cascade' }),
+  label: text('label').notNull(),
+  type: text('type', { enum: ['text', 'long_text', 'choices', 'dropdown', 'council_preference'] }).notNull(),
+  options: text('options'), // JSON array
+  required: integer('required', { mode: 'boolean' }).notNull().default(false),
+  displayOrder: integer('display_order').notNull().default(0),
+  councilPreferenceCount: integer('council_preference_count').notNull().default(1),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (table) => ({
+  stepIdx: index('idx_req_questions_step').on(table.stepId)
+}));
+
+// Delegate Answers
+export const delegateAnswers = sqliteTable('delegate_answers', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  questionId: text('question_id').notNull().references(() => registrationQuestions.id, { onDelete: 'cascade' }),
+  value: text('value').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (table) => ({
+  userQuestionIdx: unique().on(table.userId, table.questionId),
+  userIdx: index('idx_delegate_answers_user').on(table.userId)
+}));
+
 
 // QR Tokens
 export const qrTokens = sqliteTable(
@@ -229,6 +297,30 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   }),
   posts: many(posts),
   postLikes: many(postLikes),
+  delegateAnswers: many(delegateAnswers),
+}));
+
+export const registrationStepsRelations = relations(registrationSteps, ({ many }) => ({
+  questions: many(registrationQuestions),
+}));
+
+export const registrationQuestionsRelations = relations(registrationQuestions, ({ one, many }) => ({
+  step: one(registrationSteps, {
+    fields: [registrationQuestions.stepId],
+    references: [registrationSteps.id],
+  }),
+  answers: many(delegateAnswers),
+}));
+
+export const delegateAnswersRelations = relations(delegateAnswers, ({ one }) => ({
+  user: one(users, {
+    fields: [delegateAnswers.userId],
+    references: [users.id],
+  }),
+  question: one(registrationQuestions, {
+    fields: [delegateAnswers.questionId],
+    references: [registrationQuestions.id],
+  }),
 }));
 
 export const impersonationLogRelations = relations(impersonationLog, ({ one }) => ({

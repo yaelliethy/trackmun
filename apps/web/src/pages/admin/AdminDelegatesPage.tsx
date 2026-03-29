@@ -42,6 +42,17 @@ export const AdminDelegatesPage: React.FC = () => {
     },
   })
 
+  const paymentMutation = useMutation({
+    mutationFn: ({ id, field, status }: { id: string, field: "depositPaymentStatus" | "fullPaymentStatus", status: "pending" | "paid" }) => {
+      const payload: any = {}
+      payload[field] = status
+      return delegatesService.updatePaymentStatus(id, payload)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["delegates"] })
+    },
+  })
+
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0
 
   return (
@@ -64,6 +75,13 @@ export const AdminDelegatesPage: React.FC = () => {
         isLoading={isLoading}
         onEdit={setEditingUser}
         onDelete={setDeletingUser}
+        onTogglePaymentStatus={(user, field, currentStatus) => {
+          paymentMutation.mutate({ 
+            id: user.id, 
+            field, 
+            status: currentStatus === "paid" ? "pending" : "paid" 
+          })
+        }}
       />
 
       <UserEditModal

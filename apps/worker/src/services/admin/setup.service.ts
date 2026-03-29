@@ -18,13 +18,14 @@ export class SetupService {
         email,
         name,
         role: 'admin',
+        emailVerified: true,
       })
       .run();
   }
   async promoteToAdmin(id: string) {
     const result = await this.db
     .update(users)
-    .set({ role: 'admin' })
+    .set({ role: 'admin', emailVerified: true })
     .where(eq(users.id, id))
     .run();
       return result;

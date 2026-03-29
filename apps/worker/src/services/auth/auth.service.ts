@@ -1,6 +1,6 @@
 import { User, UserRole } from '@trackmun/shared';
 import { DbType } from '../../db/client';
-import { users, impersonationLog, delegateProfiles } from '../../db/schema';
+import { users, impersonationLog, delegateProfiles, settings, delegateAnswers } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { getAuth } from '../../lib/auth';
 import { Bindings } from '../../types/env';
@@ -20,7 +20,7 @@ export class AuthService {
       lastName: user.lastName,
       name: user.name,
       role: user.role as UserRole,
-      registrationStatus: user.registrationStatus as 'pending' | 'approved' | 'rejected' | undefined,
+      registrationStatus: (user.registrationStatus as 'pending' | 'approved' | 'rejected') || 'pending',
       council: user.council || undefined,
       created_at:
         user.createdAt instanceof Date ? user.createdAt.getTime() : user.createdAt,
@@ -33,8 +33,8 @@ export class AuthService {
       email: string;
       firstName: string;
       lastName: string;
-      firstChoice: string;
-      secondChoice: string;
+      answers?: Record<string, string>;
+      paymentProofR2Key?: string;
     }
   ): Promise<User> {
     const auth = getAuth(env, this.db);
@@ -66,15 +66,40 @@ export class AuthService {
       .where(eq(users.id, result.user.id))
       .run();
 
-    // Create delegate profile with committee choices
+    // Read settings to snapshot fee amounts
+    const settingsRows = await this.db.select().from(settings).all();
+    let depositAmount: number | null = null;
+    let fullAmount: number | null = null;
+    for (const row of settingsRows) {
+      if (row.key === 'registration_deposit_amount') depositAmount = parseInt(row.value, 10);
+      if (row.key === 'registration_full_amount') fullAmount = parseInt(row.value, 10);
+    }
+
+    // Create delegate profile
     await this.db
       .insert(delegateProfiles)
       .values({
         userId: result.user.id,
-        firstChoice: data.firstChoice,
-        secondChoice: data.secondChoice,
-      })
+        depositAmount,
+        fullAmount,
+        paymentProofR2Key: data.paymentProofR2Key,
+      } as any)
       .run();
+
+    // Insert dynamic answers
+    if (data.answers) {
+      const now = new Date();
+      for (const [questionId, value] of Object.entries(data.answers)) {
+        await this.db.insert(delegateAnswers).values({
+          id: crypto.randomUUID(),
+          userId: result.user.id,
+          questionId,
+          value,
+          createdAt: now,
+          updatedAt: now,
+        } as any).run();
+      }
+    }
 
     return {
       id: result.user.id,
