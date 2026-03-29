@@ -2,7 +2,7 @@ import { Context } from 'hono';
 import { Bindings } from '../../types/env';
 import { DelegateSetupService } from '../../services/delegates/setup.service';
 import { getDb } from '../../db/client';
-import { getAuth } from '../../lib/auth';
+import { getSupabaseAdmin } from '../../lib/supabase-admin';
 import { users, delegateProfiles } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -52,23 +52,17 @@ export class DelegateSetupController {
       console.log('[DelegateSetupController] Deleting delegate profile...');
       await db.delete(delegateProfiles).where(eq(delegateProfiles.userId, existingUser.id)).run();
       
-      // 2. Delete from accounts table (better-auth)
-      console.log('[DelegateSetupController] Deleting accounts...');
-      const { accounts } = await import('../../db/schema');
-      await db.delete(accounts).where(eq(accounts.userId, existingUser.id)).run();
+      // 2. Delete from Supabase
+      console.log('[DelegateSetupController] Deleting from Supabase...');
+      const supabase = getSupabaseAdmin(c.env);
+      try {
+        await supabase.deleteUser(existingUser.id);
+      } catch (e) {
+        console.warn('[DelegateSetupController] Failed to delete user from Supabase (might not exist):', e);
+      }
       
-      // 3. Delete from sessions table (better-auth)
-      console.log('[DelegateSetupController] Deleting sessions...');
-      const { sessions } = await import('../../db/schema');
-      await db.delete(sessions).where(eq(sessions.userId, existingUser.id)).run();
-      
-      // 4. Delete from verifications table (better-auth)
-      console.log('[DelegateSetupController] Deleting verifications...');
-      const { verifications } = await import('../../db/schema');
-      await db.delete(verifications).where(eq(verifications.identifier, existingUser.email)).run();
-      
-      // 5. Finally delete the user
-      console.log('[DelegateSetupController] Deleting user...');
+      // 3. Finally delete the user from Turso
+      console.log('[DelegateSetupController] Deleting user from Turso...');
       await db.delete(users).where(eq(users.id, existingUser.id)).run();
       
       console.log('[DelegateSetupController] Existing user and related records deleted successfully.');
@@ -84,44 +78,44 @@ export class DelegateSetupController {
 
     try {
       console.log('[DelegateSetupController] Starting delegate setup...');
-      const auth = getAuth(c.env, db);
+      const supabase = getSupabaseAdmin(c.env);
 
-      // 1. Create user via better-auth (this handles password hashing and creates account)
-      console.log('[DelegateSetupController] Creating user via better-auth...');
-      const user = await auth.api.signUpEmail({
-        body: { 
-          email: this.DEFAULT_EMAIL, 
-          password: this.DEFAULT_PASSWORD, 
-          name: this.DEFAULT_NAME 
-        }
+      // 1. Create user via Supabase
+      console.log('[DelegateSetupController] Creating user via Supabase...');
+      const user = await supabase.createUser({
+        email: this.DEFAULT_EMAIL,
+        password: this.DEFAULT_PASSWORD,
+        email_confirm: true,
+        user_metadata: { name: this.DEFAULT_NAME }
       });
 
-      if (!user || !user.user) {
-        console.error('[DelegateSetupController] better-auth signUpEmail returned null');
-        throw new Error('Failed to create delegate user via better-auth');
+      if (!user || !user.id) {
+        console.error('[DelegateSetupController] Supabase createUser returned null or no ID');
+        throw new Error('Failed to create delegate user via Supabase');
       }
 
-      console.log('[DelegateSetupController] User created successfully:', user.user.id);
+      console.log('[DelegateSetupController] User created successfully:', user.id);
 
-      // 2. Mark email as verified and registration as approved in the database
-      console.log('[DelegateSetupController] Marking email as verified and approved...');
-      await db.update(users)
-        .set({ 
-          emailVerified: true,
-          registrationStatus: 'approved'
-        })
-        .where(eq(users.id, user.user.id))
-        .run();
+      // 2. Create user in Turso
+      console.log('[DelegateSetupController] Creating user in Turso...');
+      await db.insert(users).values({
+        id: user.id,
+        email: this.DEFAULT_EMAIL,
+        name: this.DEFAULT_NAME,
+        role: 'delegate',
+        registrationStatus: 'approved',
+        emailVerified: true
+      }).run();
 
       // 3. Create delegate profile with country
-      await service.createDelegateProfile(user.user.id, this.DEFAULT_COUNTRY);
+      await service.createDelegateProfile(user.id, this.DEFAULT_COUNTRY);
       console.log('[DelegateSetupController] Delegate profile created successfully.');
 
       return c.json({
         success: true,
         data: {
           message: 'Delegate user created successfully.',
-          id: user.user.id,
+          id: user.id,
           email: this.DEFAULT_EMAIL,
           country: this.DEFAULT_COUNTRY,
           note: 'This is a test delegate account for initial setup. You can now log in with these credentials.'

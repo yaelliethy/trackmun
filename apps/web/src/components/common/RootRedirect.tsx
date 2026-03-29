@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom"
 import { useAuthStore } from "../../hooks/useAuthStore"
 import { api } from "../../services/api"
 import { User } from "@trackmun/shared"
+import { supabase } from "../../lib/supabase"
 
 export const RootRedirect: React.FC = () => {
   const { user, setUser } = useAuthStore()
@@ -16,26 +17,21 @@ export const RootRedirect: React.FC = () => {
         return
       }
 
-      // Check if we have a token
-      const token = localStorage.getItem("auth_token")
-      if (!token) {
-        // No token, redirect to login (NOT admin login!)
-        setRedirectPath("/login")
-        return
-      }
-
-      // Try to fetch user data
+      // Try to get Supabase session
       try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          setRedirectPath("/login")
+          return
+        }
+
+        // Try to fetch user data from Worker
         const userData = await api.get<User>("/auth/me")
         setUser(userData)
         setRedirectPath(getRedirectPath(userData.role))
       } catch (err) {
         console.error("Failed to fetch user data during root redirect:", err)
-        // Clear tokens on error
-        localStorage.removeItem("auth_token")
-        localStorage.removeItem("refresh_token")
-        localStorage.removeItem("impersonation_token")
-        localStorage.removeItem("impersonated_user")
+        await supabase.auth.signOut()
         setUser(null)
         setRedirectPath("/login")
       }

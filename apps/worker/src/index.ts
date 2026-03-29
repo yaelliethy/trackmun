@@ -22,6 +22,37 @@ import uploadRoutes from './routes/upload';
 
 const app = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
 
+// CORS middleware for all routes - MUST be first to handle preflights even on errors
+app.use('*', async (c, next) => {
+  const origin = c.req.header('Origin');
+  console.log(`CORS check: Origin=${origin}, FRONTEND_URL=${c.env.FRONTEND_URL}`);
+  
+  const middleware = cors({
+    origin: (origin, c) => {
+      const allowedOrigins = [
+        c.env.FRONTEND_URL,
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'https://trackmun.app',
+        'https://trackmun.pages.dev',
+      ].filter(Boolean);
+
+      if (allowedOrigins.includes(origin) || (origin && (origin.endsWith('.pages.dev') || origin.endsWith('.workers.dev')))) {
+        return origin;
+      }
+      return allowedOrigins[0] || origin;
+    },
+    allowHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    exposeHeaders: ['Content-Length', 'X-Kuma-Revision', 'set-auth-jwt', 'set-cookie'],
+    credentials: true,
+    maxAge: 86400,
+  });
+  return middleware(c, next);
+});
+
 // Global error handler
 app.onError((err, c) => {
   console.error(`Unhandled error: ${err.message}`, err);
@@ -32,35 +63,49 @@ app.onError((err, c) => {
   }, 500);
 });
 
-// Initialize database middleware
 app.use('*', async (c, next) => {
-  initializeDb({
-    url: c.env.TURSO_DATABASE_URL,
-    authToken: c.env.TURSO_AUTH_TOKEN,
-  });
-  return next();
-});
+  // Initialize database middleware with comprehensive binding checks
+  const requiredBindings = [
+    'TURSO_DATABASE_URL',
+    'TURSO_AUTH_TOKEN',
+    'SUPABASE_URL',
+    'SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'SUPABASE_JWT_SECRET',
+    'IMPERSONATION_SECRET',
+  ];
 
-// CORS middleware for all routes
-app.use('*', async (c, next) => {
-  const middleware = cors({
-    origin: [
-      c.env.FRONTEND_URL,
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'https://trackmun.app', 
-      'https://trackmun.yaelliethy.workers.dev',
-      // @ts-ignore
-      /\.pages\.dev$/
-    ],
-    allowHeaders: ['Authorization', 'Content-Type'],
-    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    exposeHeaders: ['set-auth-jwt'],
-    credentials: true,
+  const isProduction = c.env.ENVIRONMENT === 'production';
+  const missing = requiredBindings.filter(key => {
+    const val = c.env[key as keyof Bindings];
+    if (!val || val === '') return true;
+    if (val === 'placeholder' && isProduction) return true;
+    return false;
   });
-  return middleware(c, next);
+  
+  if (missing.length > 0) {
+    console.error(`Missing or invalid required bindings: ${missing.join(', ')}`);
+    return c.json({
+      success: false,
+      error: `Missing or invalid configuration keys: ${missing.join(', ')}. Please ensure all required secrets are set in Cloudflare or .dev.vars.`,
+      code: 'CONFIG_ERROR'
+    }, 500);
+  }
+
+  try {
+    initializeDb({
+      url: c.env.TURSO_DATABASE_URL,
+      authToken: c.env.TURSO_AUTH_TOKEN,
+    });
+  } catch (err) {
+    console.error('Failed to initialize database:', err);
+    return c.json({
+      success: false,
+      error: 'Failed to connect to database',
+      code: 'DATABASE_CONNECTION_ERROR'
+    }, 503);
+  }
+  return next();
 });
 
 // The OpenAPI documentation will be available at /doc

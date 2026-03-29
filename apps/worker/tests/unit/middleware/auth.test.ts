@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { withAuth } from '#src/middleware/auth';
 import { AuthService } from '#src/services/auth/auth.service';
 import * as dbClient from '#src/db/client';
-import * as jwtLib from '#src/lib/verify-better-auth-jwt';
+import * as jwtLib from '#src/lib/verify-supabase-jwt';
 
 vi.mock('#src/db/client', () => ({
   getDb: vi.fn(),
@@ -16,12 +16,12 @@ function b64urlSegment(obj: object): string {
 }
 
 function makeThreePartToken(payload: Record<string, unknown>): string {
-  return `${b64urlSegment({ alg: 'EdDSA', typ: 'JWT' })}.${b64urlSegment(payload)}.sig`;
+  return `${b64urlSegment({ alg: 'HS256', typ: 'JWT' })}.${b64urlSegment(payload)}.sig`;
 }
 
 function createMockContext(
   authHeader: string | undefined,
-  env: { IMPERSONATION_SECRET: string; BETTER_AUTH_URL: string }
+  env: { IMPERSONATION_SECRET: string; SUPABASE_JWT_SECRET: string }
 ) {
   const vars = new Map<string, unknown>();
   return {
@@ -41,8 +41,8 @@ function createMockContext(
 }
 
 describe('withAuth', () => {
-  const secret = 'impersonation-test-secret-32chars-min';
-  const betterAuthUrl = 'https://auth.example.com';
+  const impersonationSecret = 'impersonation-test-secret-32chars-min';
+  const supabaseJwtSecret = 'supabase-test-jwt-secret-32chars-min';
   const getDb = vi.mocked(dbClient.getDb);
 
   beforeEach(() => {
@@ -51,8 +51,8 @@ describe('withAuth', () => {
 
   it('returns 401 when Authorization header is missing', async () => {
     const c = createMockContext(undefined, {
-      IMPERSONATION_SECRET: secret,
-      BETTER_AUTH_URL: betterAuthUrl,
+      IMPERSONATION_SECRET: impersonationSecret,
+      SUPABASE_JWT_SECRET: supabaseJwtSecret,
     });
     const next = vi.fn();
     await withAuth(c as never, next);
@@ -65,8 +65,8 @@ describe('withAuth', () => {
 
   it('returns 401 when Bearer format is invalid', async () => {
     const c = createMockContext('Basic xyz', {
-      IMPERSONATION_SECRET: secret,
-      BETTER_AUTH_URL: betterAuthUrl,
+      IMPERSONATION_SECRET: impersonationSecret,
+      SUPABASE_JWT_SECRET: supabaseJwtSecret,
     });
     const next = vi.fn();
     await withAuth(c as never, next);
@@ -79,8 +79,8 @@ describe('withAuth', () => {
 
   it('returns 401 when token is not three segments', async () => {
     const c = createMockContext('Bearer not-a-jwt', {
-      IMPERSONATION_SECRET: secret,
-      BETTER_AUTH_URL: betterAuthUrl,
+      IMPERSONATION_SECRET: impersonationSecret,
+      SUPABASE_JWT_SECRET: supabaseJwtSecret,
     });
     const next = vi.fn();
     await withAuth(c as never, next);
@@ -102,7 +102,7 @@ describe('withAuth', () => {
         iat: Math.floor(Date.now() / 1000),
         logId: 'log-1',
       },
-      secret
+      impersonationSecret
     );
 
     const userRow = {
@@ -123,8 +123,8 @@ describe('withAuth', () => {
     } as never);
 
     const c = createMockContext(`Bearer ${token}`, {
-      IMPERSONATION_SECRET: secret,
-      BETTER_AUTH_URL: betterAuthUrl,
+      IMPERSONATION_SECRET: impersonationSecret,
+      SUPABASE_JWT_SECRET: supabaseJwtSecret,
     });
     const next = vi.fn().mockResolvedValue(undefined);
     await withAuth(c as never, next);
@@ -139,15 +139,15 @@ describe('withAuth', () => {
     });
   });
 
-  it('accepts Better Auth path when verify returns sub and user exists in D1', async () => {
-    vi.spyOn(jwtLib, 'verifyBetterAuthAccessToken').mockResolvedValueOnce({
-      sub: 'user-ba',
+  it('accepts Supabase token when verify returns sub and user exists in D1', async () => {
+    vi.spyOn(jwtLib, 'verifySupabaseJwt').mockResolvedValueOnce({
+      sub: 'user-sb',
     });
 
     const userRow = {
-      id: 'user-ba',
-      email: 'ba@example.com',
-      name: 'BA User',
+      id: 'user-sb',
+      email: 'sb@example.com',
+      name: 'SB User',
       role: 'delegate',
       council: null,
       createdAt: 2,
@@ -161,22 +161,22 @@ describe('withAuth', () => {
       select: vi.fn(() => selectChain),
     } as never);
 
-    const token = makeThreePartToken({ sub: 'user-ba' });
+    const token = makeThreePartToken({ sub: 'user-sb' });
     const c = createMockContext(`Bearer ${token}`, {
-      IMPERSONATION_SECRET: secret,
-      BETTER_AUTH_URL: betterAuthUrl,
+      IMPERSONATION_SECRET: impersonationSecret,
+      SUPABASE_JWT_SECRET: supabaseJwtSecret,
     });
     const next = vi.fn().mockResolvedValue(undefined);
     await withAuth(c as never, next);
 
-    expect(jwtLib.verifyBetterAuthAccessToken).toHaveBeenCalled();
+    expect(jwtLib.verifySupabaseJwt).toHaveBeenCalled();
     expect(next).toHaveBeenCalled();
     expect(c.vars.get('isImpersonating')).toBe(false);
-    expect(c.vars.get('user')).toMatchObject({ id: 'user-ba' });
+    expect(c.vars.get('user')).toMatchObject({ id: 'user-sb' });
   });
 
-  it('returns 401 when Better Auth verifies but user is not in D1', async () => {
-    vi.spyOn(jwtLib, 'verifyBetterAuthAccessToken').mockResolvedValueOnce({
+  it('returns 401 when Supabase verifies but user is not in D1', async () => {
+    vi.spyOn(jwtLib, 'verifySupabaseJwt').mockResolvedValueOnce({
       sub: 'ghost',
     });
 
@@ -191,8 +191,8 @@ describe('withAuth', () => {
 
     const token = makeThreePartToken({ sub: 'ghost' });
     const c = createMockContext(`Bearer ${token}`, {
-      IMPERSONATION_SECRET: secret,
-      BETTER_AUTH_URL: betterAuthUrl,
+      IMPERSONATION_SECRET: impersonationSecret,
+      SUPABASE_JWT_SECRET: supabaseJwtSecret,
     });
     const next = vi.fn();
     await withAuth(c as never, next);

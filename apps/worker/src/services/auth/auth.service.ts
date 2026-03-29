@@ -2,7 +2,7 @@ import { User, UserRole } from '@trackmun/shared';
 import { DbType } from '../../db/client';
 import { users, impersonationLog, delegateProfiles, settings, delegateAnswers } from '../../db/schema';
 import { eq } from 'drizzle-orm';
-import { getAuth } from '../../lib/auth';
+import { getSupabaseAdmin } from '../../lib/supabase-admin';
 import { Bindings } from '../../types/env';
 
 export class AuthService {
@@ -37,34 +37,37 @@ export class AuthService {
       paymentProofR2Key?: string;
     }
   ): Promise<User> {
-    const auth = getAuth(env, this.db);
+    const supabase = getSupabaseAdmin(env);
 
     const fullName = `${data.firstName} ${data.lastName}`;
 
-    const result = await auth.api.signUpEmail({
-      body: {
-        email: data.email,
+    const userResult = await supabase.createUser({
+      email: data.email,
+      password: crypto.randomUUID(), // Auto-generate password
+      email_confirm: true,
+      user_metadata: {
         name: fullName,
-        password: crypto.randomUUID(), // Auto-generate password, will be sent via email
         firstName: data.firstName,
         lastName: data.lastName,
       },
     });
 
-    if (!result || !result.user) {
-      throw new Error('Failed to create user');
+    if (!userResult || !userResult.id) {
+      throw new Error('Failed to create user in Supabase');
     }
 
-    // Update user with additional fields
-    await this.db
-      .update(users)
-      .set({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        registrationStatus: 'pending',
-      })
-      .where(eq(users.id, result.user.id))
-      .run();
+    const userId = userResult.id;
+
+    // Create user in Turso
+    await this.db.insert(users).values({
+      id: userId,
+      email: data.email,
+      name: fullName,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      role: 'delegate',
+      registrationStatus: 'pending',
+    }).run();
 
     // Read settings to snapshot fee amounts
     const settingsRows = await this.db.select().from(settings).all();
@@ -79,7 +82,7 @@ export class AuthService {
     await this.db
       .insert(delegateProfiles)
       .values({
-        userId: result.user.id,
+        userId: userId,
         depositAmount,
         fullAmount,
         paymentProofR2Key: data.paymentProofR2Key,
@@ -92,7 +95,7 @@ export class AuthService {
       for (const [questionId, value] of Object.entries(data.answers)) {
         await this.db.insert(delegateAnswers).values({
           id: crypto.randomUUID(),
-          userId: result.user.id,
+          userId: userId,
           questionId,
           value,
           createdAt: now,
@@ -102,18 +105,15 @@ export class AuthService {
     }
 
     return {
-      id: result.user.id,
-      email: result.user.email,
+      id: userId,
+      email: data.email,
       firstName: data.firstName,
       lastName: data.lastName,
       name: fullName,
-      role: (result.user.role as UserRole) || 'delegate',
+      role: 'delegate',
       registrationStatus: 'pending',
-      council: result.user.council || undefined,
-      created_at:
-        result.user.createdAt instanceof Date
-          ? result.user.createdAt.getTime()
-          : result.user.createdAt,
+      council: undefined,
+      created_at: Date.now(),
     };
   }
 

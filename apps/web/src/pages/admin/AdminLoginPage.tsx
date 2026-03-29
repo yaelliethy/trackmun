@@ -1,6 +1,5 @@
 import React, { useState } from "react"
-import { api } from "../../services/api"
-import { User } from "@trackmun/shared"
+import { authService } from "../../services/auth"
 import { useLocation, useNavigate, Link } from "react-router-dom"
 import { useAuthStore } from "../../hooks/useAuthStore"
 import { Button } from "@/components/ui/button"
@@ -23,7 +22,7 @@ export const AdminLoginPage: React.FC = () => {
 
   const fromPath =
     (location.state as { from?: { pathname?: string } } | null)?.from
-      ?.pathname ?? "/admin/delegates"
+    ?.pathname ?? "/admin/delegates"
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,21 +30,10 @@ export const AdminLoginPage: React.FC = () => {
     setLoading(true)
 
     try {
-      const loginRes = await api.post<{ token: string; user: User }>(
-        "/auth/sign-in/email",
-        { email, password }
-      )
-
-      localStorage.setItem("refresh_token", loginRes.token)
-
-      const tokenRes = await api.get<{ accessToken: string }>("/auth/token")
-      localStorage.setItem("auth_token", tokenRes.accessToken)
-
+      const loginRes = await authService.signIn(email, password)
       const user = loginRes.user
 
       if (user.role !== "admin") {
-        localStorage.removeItem("auth_token")
-        localStorage.removeItem("refresh_token")
         setError("Access denied. Administrator credentials required.")
         setLoading(false)
         return
@@ -57,8 +45,8 @@ export const AdminLoginPage: React.FC = () => {
           ? fromPath
           : "/admin/delegates"
       navigate(target, { replace: true })
-    } catch {
-      setError("Invalid email or password. Please check your credentials and try again.")
+    } catch (err: any) {
+      setError(err.message || "Invalid email or password. Please check your credentials and try again.")
     } finally {
       setLoading(false)
     }

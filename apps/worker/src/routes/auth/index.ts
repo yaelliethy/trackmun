@@ -4,8 +4,6 @@ import { AuthContext, withAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { UserSchema, RegisterUserSchema } from '@trackmun/shared';
 import { AuthController } from '../../controllers/auth/auth.controller';
-import { getDb } from '../../db/client';
-import { getAuth } from '../../lib/auth';
 
 const auth = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
 const controller = new AuthController();
@@ -47,7 +45,8 @@ auth.openapi(
   controller.register
 );
 
-// better-auth endpoints for Swagger documentation
+// Supabase Auth proxy endpoints for Swagger documentation
+// Note: Frontend uses Supabase JS SDK directly, but we keep these for documentation/API consistency
 auth.openapi(
   createRoute({
     method: 'post',
@@ -70,7 +69,7 @@ auth.openapi(
         content: {
           'application/json': {
             schema: z.object({
-              token: z.string(),
+              session: z.any(),
               user: UserSchema,
             }),
           },
@@ -78,74 +77,28 @@ auth.openapi(
       },
       401: { description: 'Invalid credentials' },
     },
-    summary: 'Sign in with email and password',
+    summary: 'Sign in with email and password (Proxy to Supabase)',
   }),
   async (c) => {
-    const db = getDb();
-    const betterAuth = getAuth(c.env, db);
-    // OpenAPI validation consumes the body; better-auth must receive a fresh Request.
     const body = c.req.valid('json');
-    const forward = new Request(c.req.raw.url, {
+    const response = await fetch(`${c.env.SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
-      headers: c.req.raw.headers,
-      body: JSON.stringify(body),
-    });
-    return betterAuth.handler(forward);
-  }
-);
-
-auth.openapi(
-  createRoute({
-    method: 'get',
-    path: '/token',
-    responses: {
-      200: {
-        description: 'Access token generated',
-        content: {
-          'application/json': {
-            schema: z.object({
-              token: z.string(),
-            }),
-          },
-        },
+      headers: {
+        'apikey': c.env.SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
       },
-    },
-    summary: 'Exchange session for access JWT',
-  }),
-  async (c) => {
-    const db = getDb();
-    const betterAuth = getAuth(c.env, db);
-    return betterAuth.handler(c.req.raw) as any;
-  }
-);
-
-// better-auth has no /refresh; JWT access is issued at GET /auth/token. Alias for clients.
-auth.openapi(
-  createRoute({
-    method: 'post',
-    path: '/refresh',
-    responses: {
-      200: {
-        description: 'New JWT from session cookie',
-        content: {
-          'application/json': {
-            schema: z.object({ token: z.string() }),
-          },
-        },
-      },
-    },
-    summary: 'Refresh JWT (same as GET /auth/token; requires session cookie)',
-  }),
-  async (c) => {
-    const db = getDb();
-    const betterAuth = getAuth(c.env, db);
-    const url = new URL(c.req.url);
-    url.pathname = '/auth/token';
-    const tokenRequest = new Request(url.toString(), {
-      method: 'GET',
-      headers: c.req.raw.headers,
+      body: JSON.stringify({
+        email: body.email,
+        password: body.password,
+      }),
     });
-    return betterAuth.handler(tokenRequest) as any;
+
+    const data = await response.json() as any;
+    if (!response.ok) {
+      return c.json({ success: false, error: data.error_description || data.error || 'Login failed' }, response.status as any);
+    }
+
+    return c.json(data);
   }
 );
 
@@ -161,9 +114,18 @@ auth.openapi(
     summary: 'Sign out',
   }),
   async (c) => {
-    const db = getDb();
-    const betterAuth = getAuth(c.env, db);
-    return betterAuth.handler(c.req.raw) as any;
+    // Supabase sign out is handled on the client, but we provide a proxy for completeness
+    const authHeader = c.req.header('Authorization');
+    if (authHeader) {
+      await fetch(`${c.env.SUPABASE_URL}/auth/v1/logout`, {
+        method: 'POST',
+        headers: {
+          'apikey': c.env.SUPABASE_ANON_KEY,
+          'Authorization': authHeader,
+        },
+      });
+    }
+    return c.json({ success: true, data: null });
   }
 );
 
@@ -262,12 +224,5 @@ auth.openapi(
   }),
   controller.unimpersonateUser
 );
-
-// Pass through any other /auth/* path to better-auth (sign-up, get-session, OAuth, etc.)
-auth.all('*', async (c) => {
-  const db = getDb();
-  const betterAuth = getAuth(c.env, db);
-  return betterAuth.handler(c.req.raw);
-});
 
 export default auth;

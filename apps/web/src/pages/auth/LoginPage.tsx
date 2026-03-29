@@ -1,6 +1,5 @@
 import React, { useState } from "react"
-import { api } from "../../services/api"
-import { User } from "@trackmun/shared"
+import { authService } from "../../services/auth"
 import { useNavigate, Link } from "react-router-dom"
 import { useAuthStore } from "../../hooks/useAuthStore"
 import { Button } from "@/components/ui/button"
@@ -26,21 +25,11 @@ export const LoginPage: React.FC = () => {
     setLoading(true)
 
     try {
-      const loginRes = await api.post<{ token: string; user: User }>(
-        "/auth/sign-in/email",
-        { email, password }
-      )
+      const loginRes = await authService.signIn(email, password)
 
       // Clear any existing auth data first
-      localStorage.removeItem("auth_token")
-      localStorage.removeItem("refresh_token")
       localStorage.removeItem("impersonation_token")
       localStorage.removeItem("impersonated_user")
-
-      localStorage.setItem("refresh_token", loginRes.token)
-
-      const tokenRes = await api.get<{ accessToken: string }>("/auth/token")
-      localStorage.setItem("auth_token", tokenRes.accessToken)
 
       setUser(loginRes.user)
 
@@ -61,9 +50,6 @@ export const LoginPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Login error:", err)
-      // Clear tokens on error
-      localStorage.removeItem("auth_token")
-      localStorage.removeItem("refresh_token")
       setError(err.message || "Invalid email or password. Please check your credentials and try again.")
     } finally {
       setLoading(false)

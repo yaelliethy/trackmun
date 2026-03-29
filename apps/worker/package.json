@@ -21,7 +21,6 @@
     "@hono/zod-openapi": "^0.18.4",
     "@libsql/client": "^0.5.6",
     "@trackmun/shared": "workspace:*",
-    "better-auth": "^1.1.0",
     "drizzle-orm": "^0.30.10",
     "hono": "^4.12.9",
     "jose": "^6.1.3",

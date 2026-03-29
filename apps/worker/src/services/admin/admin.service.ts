@@ -15,8 +15,6 @@ import {
   countryAssignments,
   awards,
   qrScanLog,
-  sessions,
-  accounts,
 } from '../../db/schema';
 import { eq, or, inArray, count, and, like, SQL } from 'drizzle-orm';
 import { z } from 'zod';
@@ -199,9 +197,6 @@ export class AdminService {
       .run();
 
     await this.db.delete(qrScanLog).where(eq(qrScanLog.scannedBy, id)).run();
-
-    await this.db.delete(sessions).where(eq(sessions.userId, id)).run();
-    await this.db.delete(accounts).where(eq(accounts.userId, id)).run();
 
     await this.db.delete(users).where(eq(users.id, id)).run();
 

@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
 
 class ApiError extends Error {
@@ -7,43 +9,21 @@ class ApiError extends Error {
   }
 }
 
-function getAuthToken(): string | null {
+async function getAuthToken(): Promise<string | null> {
   // Check for impersonation token in localStorage first
   const impersonationToken = localStorage.getItem('impersonation_token');
   if (impersonationToken) return impersonationToken;
 
-  // better-auth access token
-  return localStorage.getItem('auth_token');
-}
-
-async function refreshAccessToken(): Promise<string | null> {
-  try {
-    // better-auth JWT plugin: GET /auth/token (session cookie). POST /auth/refresh is a server alias.
-    const response = await fetch(`${API_BASE_URL}/auth/token`, {
-      method: 'GET',
-      credentials: 'include',
-    });
-
-    if (!response.ok) throw new Error('Refresh failed');
-
-    const data = (await response.json()) as { token?: string; accessToken?: string };
-    const token = data.token ?? data.accessToken;
-    if (token) {
-      localStorage.setItem('auth_token', token);
-      return token;
-    }
-    return null;
-  } catch (error) {
-    console.error('Failed to refresh token:', error);
-    return null;
-  }
+  // Supabase access token
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
 }
 
 export async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  let token = getAuthToken();
+  const token = await getAuthToken();
   
   const headers = new Headers(options.headers);
   if (token) {
@@ -51,33 +31,14 @@ export async function request<T>(
   }
   headers.set('Content-Type', 'application/json');
 
-  let response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
-    credentials: 'include',
   });
-
-  // Handle 401 and attempt silent refresh
-  if (
-    response.status === 401 &&
-    !path.includes('/auth/token') &&
-    !path.includes('/auth/refresh') &&
-    !path.includes('/auth/sign-in')
-  ) {
-    const newToken = await refreshAccessToken();
-    if (newToken) {
-      headers.set('Authorization', `Bearer ${newToken}`);
-      response = await fetch(`${API_BASE_URL}${path}`, {
-        ...options,
-        headers,
-        credentials: 'include',
-      });
-    }
-  }
 
   const data = (await response.json()) as any;
 
-  // better-auth direct responses don't use our success/data envelope
+  // Supabase direct responses don't use our success/data envelope
   if (path.startsWith('/auth/') && !path.includes('/me') && !path.includes('/admin/impersonate') && !path.includes('/admin/unimpersonate')) {
     if (!response.ok) {
       throw new ApiError(data.error || 'Request failed', data.code, response.status);

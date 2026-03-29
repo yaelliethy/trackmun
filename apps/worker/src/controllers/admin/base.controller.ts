@@ -4,7 +4,8 @@ import { Bindings } from '../../types/env';
 import { AuthContext } from '../../middleware/auth';
 import { UserRole } from '@trackmun/shared';
 import { getDb } from '../../db/client';
-import { getAuth } from '../../lib/auth';
+import { getSupabaseAdmin } from '../../lib/supabase-admin';
+import { users } from '../../db/schema';
 
 type AdminContext = Context<{ Bindings: Bindings; Variables: AuthContext }>;
 
@@ -35,34 +36,41 @@ export class AdminController {
 
   createUser = async (c: AdminContext) => {
     const body = await c.req.json();
-    const auth = getAuth(c.env, getDb());
+    const supabase = getSupabaseAdmin(c.env);
 
     try {
-      const res = await auth.api.signUpEmail({
-        body: {
-          email: body.email,
+      const res = await supabase.createUser({
+        email: body.email,
+        password: body.password,
+        email_confirm: true,
+        user_metadata: {
           name: body.name,
-          password: body.password,
         },
       });
 
-      if (!res) {
-        return c.json({ success: false as const, error: 'Failed to create user' }, 400);
+      if (!res || !res.id) {
+        return c.json({ success: false as const, error: 'Failed to create user in Supabase' }, 400);
       }
 
-      // so we promote the user to the specific format using our admin service.
-      const service = this.getService();
-      
-      const shouldBeVerified = ['admin', 'chair', 'oc'].includes(this.role);
-
-      const updatedUser = await service.updateUser(res.user.id, {
+      const db = getDb();
+      // Create user in Turso
+      await db.insert(users).values({
+        id: res.id,
+        email: body.email,
+        name: body.name,
         role: this.role as any,
         council: body.council,
-        // @ts-ignore
-        emailVerified: shouldBeVerified ? true : undefined,
+        registrationStatus: 'approved', // Admin-created users are auto-approved
+        emailVerified: true,
+      }).run();
+
+      const service = this.getService();
+      const user = await service.updateUser(res.id, {
+        role: this.role as any,
+        council: body.council,
       });
 
-      return c.json({ success: true as const, data: updatedUser }, 201);
+      return c.json({ success: true as const, data: user }, 201);
     } catch (e: any) {
       return c.json({ success: false as const, error: e.message || 'Internal error' }, 400);
     }

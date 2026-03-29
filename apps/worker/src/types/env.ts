@@ -7,9 +7,11 @@ export type Bindings = {
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
   R2_ENDPOINT: string;
-  // Better Auth
-  BETTER_AUTH_SECRET: string;
-  BETTER_AUTH_URL: string;
+  // Supabase
+  SUPABASE_URL: string;
+  SUPABASE_ANON_KEY: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
+  SUPABASE_JWT_SECRET: string;
   // Frontend
   FRONTEND_URL: string;
   // Impersonation

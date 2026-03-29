@@ -1,10 +1,8 @@
 import { Context } from 'hono';
-import { eq } from 'drizzle-orm';
 import { getDb } from '../../db/client';
-import { users } from '../../db/schema';
 import { SetupService } from '../../services/admin/setup.service';
 import { Bindings } from '../../types/env';
-import { getAuth } from '../../lib/auth';
+import { getSupabaseAdmin } from '../../lib/supabase-admin';
 
 export class SetupController {
   init = async (c: Context<{ Bindings: Bindings }>) => {
@@ -26,29 +24,32 @@ export class SetupController {
 
     try {
       console.log('[SetupController] Starting admin setup...');
-      const auth = getAuth(c.env, db);
+      const supabase = getSupabaseAdmin(c.env);
       
-      // 2. Create user via better-auth (role defaults to 'delegate')
-      console.log('[SetupController] Creating user via better-auth...');
-      const user = await auth.api.signUpEmail({
-        body: { email, password, name }
+      // 2. Create user via Supabase
+      console.log('[SetupController] Creating user via Supabase...');
+      const user = await supabase.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { name }
       });
 
-      if (!user) {
-        console.error('[SetupController] better-auth signUpEmail returned null');
-        throw new Error('Failed to create admin user via better-auth');
+      if (!user || !user.id) {
+        console.error('[SetupController] Supabase createUser returned null or no ID');
+        throw new Error('Failed to create admin user via Supabase');
       }
 
-      console.log('[SetupController] User created successfully:', user.user.id);
+      console.log('[SetupController] User created successfully:', user.id);
 
-      // 3. Promote to admin — better-auth ignores role in signUpEmail body
-      await service.promoteToAdmin(user.user.id);
-      console.log('[SetupController] Promotion call finished.');
+      // 3. Seed to Turso with admin role
+      await service.seedAdmin(user.id, email, name);
+      console.log('[SetupController] Seed call finished.');
       return c.json({
         success: true,
         data: {
           message: 'Admin user created successfully.',
-          id: user.user.id,
+          id: user.id,
           email,
           note: 'Please change your password immediately.'
         }

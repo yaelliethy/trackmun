@@ -7,6 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import brand from "@/config/brand"
 
+import { supabase } from "../../lib/supabase"
+
 interface ProtectedRouteProps {
   children: React.ReactNode
   requiredRole?: string | string[]
@@ -20,35 +22,31 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const location = useLocation()
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const token = localStorage.getItem("auth_token")
-      if (!token) {
-        setLoading(false)
-        return
-      }
-
+    const checkAuth = async () => {
       if (user) {
         setLoading(false)
         return
       }
 
       try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          setLoading(false)
+          return
+        }
+
         const userData = await api.get<User>("/auth/me")
         setUser(userData)
       } catch (err) {
         console.error("Failed to fetch user data:", err)
-        // Clear all auth data on error
-        localStorage.removeItem("auth_token")
-        localStorage.removeItem("refresh_token")
-        localStorage.removeItem("impersonation_token")
-        localStorage.removeItem("impersonated_user")
+        await supabase.auth.signOut()
         setUser(null)
       } finally {
         setLoading(false)
       }
     }
 
-    void fetchUser()
+    void checkAuth()
   }, [setUser, setLoading, user])
 
   if (isLoading) {
@@ -98,8 +96,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     )
   }
 
-  const token = localStorage.getItem("auth_token")
-  if (!token) {
+  if (!user) {
     // Redirect to login, preserving the attempted location
     return (
       <Navigate to="/login" state={{ from: location }} replace />

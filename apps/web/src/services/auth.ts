@@ -1,5 +1,6 @@
 import { api } from './api';
 import { User, RegisterUser } from '@trackmun/shared';
+import { supabase } from '../lib/supabase';
 
 export interface RegisterResponse {
   user: User;
@@ -9,14 +10,31 @@ export const authService = {
   register: (data: RegisterUser) =>
     api.post<RegisterResponse>('/auth/register', data),
 
-  signIn: (email: string, password: string) =>
-    api.post<{ token: string; user: User }>('/auth/sign-in/email', { email, password }),
+  signIn: async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  signOut: () =>
-    api.post<null>('/auth/sign-out'),
+    if (error) {
+      throw error;
+    }
 
-  getToken: () =>
-    api.get<{ token: string }>('/auth/token'),
+    // After signing in with Supabase, we fetch the user profile from our Worker
+    // to ensure we have the latest Turso data (role, council, etc.)
+    const user = await api.get<User>('/auth/me');
+    
+    return {
+      session: data.session,
+      user,
+    };
+  },
+
+  signOut: async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    return null;
+  },
 
   getCurrentUser: () =>
     api.get<User>('/auth/me'),
