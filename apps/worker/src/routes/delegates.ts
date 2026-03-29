@@ -3,14 +3,13 @@ import { Bindings } from '../types/env';
 import { AuthContext, withAuth } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
 import { getDb } from '../db/client';
-import { delegateProfiles, users } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { delegateProfiles, users, attendanceRecords, benefitRedemptions, awards } from '../db/schema';
+import { eq, desc } from 'drizzle-orm';
 
 const delegates = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
 
-// Auth only for delegate profile — do not use '*' here: this app is mounted at /delegates and
-// would otherwise require a token for unrelated paths like /delegates/setup/* on the main app.
-delegates.use('/profile', withAuth);
+// Apply auth middleware to ALL routes (including /profile)
+delegates.use('*', withAuth);
 
 // Get current delegate's profile with payment status
 delegates.openapi(
@@ -74,15 +73,163 @@ delegates.openapi(
         email: user.email,
         name: user.name,
         country: profile.country,
+        council: user.council,
         pressAgency: profile.pressAgency,
         firstChoice: profile.firstChoice,
         secondChoice: profile.secondChoice,
-        depositPaymentStatus: profile.depositPaymentStatus as 'pending' | 'paid',
-        fullPaymentStatus: profile.fullPaymentStatus as 'pending' | 'paid',
+        depositPaymentStatus: (profile.depositPaymentStatus as 'pending' | 'paid') || 'pending',
+        fullPaymentStatus: (profile.fullPaymentStatus as 'pending' | 'paid') || 'pending',
         depositAmount: profile.depositAmount,
         fullAmount: profile.fullAmount,
         paymentProofR2Key: profile.paymentProofR2Key,
       },
+    });
+  }
+);
+
+// Get delegate's attendance records
+delegates.openapi(
+  createRoute({
+    method: 'get',
+    path: '/attendance',
+    middleware: [requireRole('delegate')] as const,
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean(),
+              data: z.array(z.object({
+                id: z.string(),
+                sessionLabel: z.string(),
+                scannedAt: z.number(),
+                attended: z.boolean(),
+              })),
+            }),
+          },
+        },
+        description: 'Attendance records retrieved successfully',
+      },
+    },
+    summary: 'Get delegate attendance records',
+  }),
+  async (c) => {
+    const db = getDb();
+    const user = c.get('user');
+
+    const records = await db
+      .select()
+      .from(attendanceRecords)
+      .where(eq(attendanceRecords.userId, user.id))
+      .orderBy(desc(attendanceRecords.scannedAt))
+      .all();
+
+    return c.json({
+      success: true,
+      data: records.map((r) => ({
+        id: r.id,
+        sessionLabel: r.sessionLabel || 'General Session',
+        scannedAt: r.scannedAt,
+        attended: true,
+      })),
+    });
+  }
+);
+
+// Get delegate's benefits
+delegates.openapi(
+  createRoute({
+    method: 'get',
+    path: '/benefits',
+    middleware: [requireRole('delegate')] as const,
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean(),
+              data: z.array(z.object({
+                id: z.string(),
+                benefitType: z.string(),
+                redeemedAt: z.number(),
+              })),
+            }),
+          },
+        },
+        description: 'Benefits retrieved successfully',
+      },
+    },
+    summary: 'Get delegate benefits',
+  }),
+  async (c) => {
+    const db = getDb();
+    const user = c.get('user');
+
+    const benefits = await db
+      .select()
+      .from(benefitRedemptions)
+      .where(eq(benefitRedemptions.userId, user.id))
+      .orderBy(desc(benefitRedemptions.redeemedAt))
+      .all();
+
+    return c.json({
+      success: true,
+      data: benefits.map((b) => ({
+        id: b.id,
+        benefitType: b.benefitType,
+        redeemedAt: b.redeemedAt,
+      })),
+    });
+  }
+);
+
+// Get delegate's awards
+delegates.openapi(
+  createRoute({
+    method: 'get',
+    path: '/awards',
+    middleware: [requireRole('delegate')] as const,
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean(),
+              data: z.array(z.object({
+                id: z.string(),
+                awardType: z.string(),
+                council: z.string(),
+                givenAt: z.number(),
+                notes: z.string().nullable(),
+              })),
+            }),
+          },
+        },
+        description: 'Awards retrieved successfully',
+      },
+    },
+    summary: 'Get delegate awards',
+  }),
+  async (c) => {
+    const db = getDb();
+    const user = c.get('user');
+
+    const userAwards = await db
+      .select()
+      .from(awards)
+      .where(eq(awards.userId, user.id))
+      .orderBy(desc(awards.givenAt))
+      .all();
+
+    return c.json({
+      success: true,
+      data: userAwards.map((a) => ({
+        id: a.id,
+        awardType: a.awardType,
+        council: a.council,
+        givenAt: a.givenAt,
+        notes: a.notes,
+      })),
     });
   }
 );

@@ -39,12 +39,16 @@ export const LoginPage: React.FC = () => {
 
       localStorage.setItem("refresh_token", loginRes.token)
 
-      const tokenRes = await api.get<{ accessToken: string }>("/auth/token")
-      localStorage.setItem("auth_token", tokenRes.accessToken)
+      const tokenRes = await api.get<{ token?: string; accessToken?: string }>("/auth/token")
+      
+      const accessToken = tokenRes.token ?? tokenRes.accessToken
+      if (!accessToken) {
+        throw new Error("No access token received from /auth/token")
+      }
+      
+      localStorage.setItem("auth_token", accessToken)
 
       setUser(loginRes.user)
-
-      console.log("Login successful:", loginRes.user)
 
       // Redirect based on role
       switch (loginRes.user.role) {

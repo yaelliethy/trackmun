@@ -41,5 +41,39 @@ setup.openapi(
   }
 );
 
+// POST endpoint to reset and recreate the default delegate user
+// This deletes any existing delegate@trackmun.app user and creates a fresh one.
+setup.openapi(
+  createRoute({
+    method: 'post',
+    path: '/reset-init',
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean(),
+              data: z.object({
+                message: z.string(),
+                id: z.string(),
+                email: z.string(),
+                country: z.string(),
+                note: z.string(),
+              }),
+            }),
+          },
+        },
+        description: 'Delegate user reset and created successfully',
+      },
+      500: {
+        description: 'Failed to reset delegate user',
+      },
+    },
+    summary: 'Reset and reinitialize the default delegate user',
+  }),
+  async (c) => {
+    return controller.resetInit(c);
+  }
+);
 
 export default setup;
