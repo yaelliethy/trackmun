@@ -61,7 +61,7 @@ export const getAuth = (env: Bindings, db: DbType) => {
     },
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      requireEmailVerification: env.ENVIRONMENT === 'production',
     },
     emailVerification: {
       sendVerificationEmail: async ({ user, url }) => {

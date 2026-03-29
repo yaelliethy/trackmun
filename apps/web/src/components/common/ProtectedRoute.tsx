@@ -14,7 +14,7 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
-  requiredRole = "admin",
+  requiredRole,
 }) => {
   const { user, setUser, isLoading, setLoading } = useAuthStore()
   const location = useLocation()
@@ -37,8 +37,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         setUser(userData)
       } catch (err) {
         console.error("Failed to fetch user data:", err)
+        // Clear all auth data on error
         localStorage.removeItem("auth_token")
         localStorage.removeItem("refresh_token")
+        localStorage.removeItem("impersonation_token")
+        localStorage.removeItem("impersonated_user")
         setUser(null)
       } finally {
         setLoading(false)
@@ -97,11 +100,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   const token = localStorage.getItem("auth_token")
   if (!token) {
+    // Redirect to login, preserving the attempted location
     return (
-      <Navigate to="/admin/login" state={{ from: location }} replace />
+      <Navigate to="/login" state={{ from: location }} replace />
     )
   }
 
+  // Check role if required
   if (requiredRole && user?.role !== requiredRole) {
     return <Navigate to="/403" replace />
   }

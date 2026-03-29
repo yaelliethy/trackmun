@@ -5,6 +5,7 @@ import { UserTable } from "../../components/admin/UserTable"
 import { UserFilters, UserFilterValues } from "../../components/admin/UserFilters"
 import { UserEditModal } from "../../components/admin/UserEditModal"
 import { UserDeleteModal } from "../../components/admin/UserDeleteModal"
+import { PaymentProofReviewModal } from "../../components/admin/PaymentProofReviewModal"
 import { User, DelegateResponse } from "@trackmun/shared"
 import { AdminDataPageLayout } from "../../components/admin/AdminDataPageLayout"
 import { AdminListPagination } from "../../components/admin/AdminListPagination"
@@ -26,6 +27,7 @@ export const AdminDelegatesPage: React.FC = () => {
   const [filters, setFilters] = useState<UserFilterValues>({})
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [deletingUser, setDeletingUser] = useState<User | null>(null)
+  const [reviewingPaymentUser, setReviewingPaymentUser] = useState<User | null>(null)
   const [selectedResponse, setSelectedResponse] = useState<DelegateResponse | null>(null)
 
   const queryClient = useQueryClient()
@@ -114,11 +116,12 @@ export const AdminDelegatesPage: React.FC = () => {
         onEdit={setEditingUser}
         onDelete={setDeletingUser}
         onViewResponses={handleViewResponses}
+        onReviewPayment={setReviewingPaymentUser}
         onTogglePaymentStatus={(user, field, currentStatus) => {
-          paymentMutation.mutate({ 
-            id: user.id, 
-            field, 
-            status: currentStatus === "paid" ? "pending" : "paid" 
+          paymentMutation.mutate({
+            id: user.id,
+            field,
+            status: currentStatus === "paid" ? "pending" : "paid"
           })
         }}
       />
@@ -139,6 +142,12 @@ export const AdminDelegatesPage: React.FC = () => {
         onConfirm={async (id) => {
           await deleteMutation.mutateAsync(id)
         }}
+      />
+
+      <PaymentProofReviewModal
+        user={reviewingPaymentUser}
+        isOpen={!!reviewingPaymentUser}
+        onClose={() => setReviewingPaymentUser(null)}
       />
 
       <DelegateResponseSheet
