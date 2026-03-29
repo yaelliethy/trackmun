@@ -1,5 +1,12 @@
 import { api } from './api';
-import { User } from '@trackmun/shared';
+import {
+  User,
+  ActiveAttendancePeriod,
+  DelegateSearchResult,
+  BenefitWithStatus,
+  AttendanceResult,
+  BenefitRedeemResult,
+} from '@trackmun/shared';
 
 export interface UserListResponse {
   users: User[];
@@ -7,6 +14,7 @@ export interface UserListResponse {
 }
 
 export const ocService = {
+  // Admin methods
   list: (page = 1, limit = 20, filters?: any) => {
     let url = `/admin/oc?page=${page}&limit=${limit}`;
     if (filters) {
@@ -30,4 +38,23 @@ export const ocService = {
 
   impersonate: (id: string) =>
     api.post<{ token: string }>(`/auth/admin/impersonate/${id}`),
+
+  // OC Dashboard methods
+  getActivePeriod: () =>
+    api.get<ActiveAttendancePeriod | null>('/oc/attendance/active'),
+
+  recordAttendance: (data: { delegateId: string; periodId: string; sessionLabel: string }) =>
+    api.post<AttendanceResult>('/oc/attendance/record', data),
+
+  listBenefits: () =>
+    api.get<{ id: string; name: string }[]>('/oc/benefits'),
+
+  getBenefitStatus: (delegateId: string) =>
+    api.get<BenefitWithStatus[]>(`/oc/benefits/status/${delegateId}`),
+
+  redeemBenefit: (data: { delegateId: string; benefitId: string }) =>
+    api.post<BenefitRedeemResult>('/oc/benefits/redeem', data),
+
+  searchDelegates: (q: string) =>
+    api.get<DelegateSearchResult[]>(`/oc/delegates/search?q=${encodeURIComponent(q)}`),
 };

@@ -11,6 +11,9 @@ import { AdminAttendancePage } from './pages/admin/AdminAttendancePage';
 import { AdminRegistrationPage } from './pages/admin/AdminRegistrationPage';
 import { AdminCouncilsPage } from './pages/admin/AdminCouncilsPage';
 import { AdminLayout } from './components/admin/AdminLayout';
+import { OCLayout } from './components/oc/OCLayout';
+import { OCAttendancePage } from './pages/oc/OCAttendancePage';
+import { OCBenefitsPage } from './pages/oc/OCBenefitsPage';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { NotFoundPage, ForbiddenPage } from './pages/error/ErrorPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
@@ -30,16 +33,27 @@ function App() {
 
         {/* Protected Delegate Routes */}
         <Route path="/delegate" element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredRole="delegate">
             <DelegateDashboardPage />
           </ProtectedRoute>
         }>
           <Route path="dashboard" element={<DelegateDashboardPage />} />
         </Route>
 
+        {/* Protected OC Routes */}
+        <Route path="/oc" element={
+          <ProtectedRoute requiredRole={['oc', 'admin']}>
+            <OCLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Navigate to="/oc/attendance" replace />} />
+          <Route path="attendance" element={<OCAttendancePage />} />
+          <Route path="benefits" element={<OCBenefitsPage />} />
+        </Route>
+
         {/* Protected Admin Routes */}
         <Route path="/admin" element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredRole="admin">
             <AdminLayout />
           </ProtectedRoute>
         }>

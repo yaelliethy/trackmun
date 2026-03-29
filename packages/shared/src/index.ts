@@ -62,10 +62,57 @@ export type Benefit = z.infer<typeof BenefitSchema>;
 export const CouncilSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
+  shortName: z.string().nullable().optional(),
   createdAt: z.number().optional(),
   updatedAt: z.number().optional(),
 });
 export type Council = z.infer<typeof CouncilSchema>;
+
+// OC-specific types
+export const ActiveAttendancePeriodSchema = z.object({
+  periodId: z.string(),
+  dayId: z.string(),
+  dayName: z.string(),
+  date: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  sessionLabel: z.string(),
+});
+export type ActiveAttendancePeriod = z.infer<typeof ActiveAttendancePeriodSchema>;
+
+export const DelegateSearchResultSchema = z.object({
+  userId: z.string(),
+  name: z.string(),
+  email: z.string(),
+  identifier: z.string().nullable().optional(),
+  council: z.string().nullable().optional(),
+});
+export type DelegateSearchResult = z.infer<typeof DelegateSearchResultSchema>;
+
+export const BenefitWithStatusSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  redeemed: z.boolean(),
+  redeemedAt: z.number().nullable().optional(),
+});
+export type BenefitWithStatus = z.infer<typeof BenefitWithStatusSchema>;
+
+export const AttendanceResultSchema = z.object({
+  success: z.boolean(),
+  alreadyRecorded: z.boolean(),
+  delegateName: z.string().optional(),
+  sessionLabel: z.string().optional(),
+});
+export type AttendanceResult = z.infer<typeof AttendanceResultSchema>;
+
+export const BenefitRedeemResultSchema = z.object({
+  success: z.boolean(),
+  alreadyRedeemed: z.boolean(),
+  delegateName: z.string().optional(),
+  benefitName: z.string().optional(),
+  redeemedAt: z.number().nullable().optional(),
+});
+export type BenefitRedeemResult = z.infer<typeof BenefitRedeemResultSchema>;
 
 export const AttendancePeriodSchema = z.object({
   id: z.string(),

@@ -21,8 +21,12 @@ export class AttendanceController {
     const body = await c.req.json();
     const service = this.getService();
     
-    const day = await service.createDay(body.name, body.date);
-    return c.json({ success: true as const, data: day }, 201);
+    try {
+      const day = await service.createDay(body.name, body.date);
+      return c.json({ success: true as const, data: day }, 201);
+    } catch (err: any) {
+      return c.json({ success: false as const, error: err.message, code: 'INVALID_INPUT' }, 400);
+    }
   };
 
   deleteDay = async (c: AdminContext) => {
@@ -38,8 +42,12 @@ export class AttendanceController {
     const body = await c.req.json();
     const service = this.getService();
     
-    const newPeriods = await service.replacePeriods(id, body.periods || []);
-    return c.json({ success: true as const, data: newPeriods }, 200);
+    try {
+      const newPeriods = await service.replacePeriods(id, body.periods || []);
+      return c.json({ success: true as const, data: newPeriods }, 200);
+    } catch (err: any) {
+      return c.json({ success: false as const, error: err.message, code: 'INVALID_INPUT' }, 400);
+    }
   };
 }
 

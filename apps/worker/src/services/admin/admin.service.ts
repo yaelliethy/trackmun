@@ -20,6 +20,7 @@ import {
 } from '../../db/schema';
 import { eq, or, inArray, count, and, like, SQL } from 'drizzle-orm';
 import { z } from 'zod';
+import { OcService } from '../oc/oc.service';
 
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
 
@@ -115,12 +116,24 @@ export class AdminService {
     if (input.role !== undefined) updates.role = input.role;
     // @ts-ignore - input might have emailVerified if we extend the type or pass it manually
     if (input.emailVerified !== undefined) updates.emailVerified = input.emailVerified;
+    // @ts-ignore - registrationStatus is an extended field passed from registration controller
+    if (input.registrationStatus !== undefined) updates.registrationStatus = input.registrationStatus;
 
     if (Object.keys(updates).length === 0) {
       return this.getUserById(id);
     }
 
     await this.db.update(users).set(updates).where(eq(users.id, id)).run();
+
+    // Auto-assign delegate identifier when status changes to 'approved'
+    // @ts-ignore
+    if (input.registrationStatus === 'approved') {
+      const user = await this.getUserById(id);
+      if (user?.role === 'delegate') {
+        const ocService = new OcService(this.db);
+        await ocService.assignIdentifier(id);
+      }
+    }
 
     return this.getUserById(id);
   }

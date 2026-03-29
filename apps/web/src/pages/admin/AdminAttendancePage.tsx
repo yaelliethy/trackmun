@@ -1,10 +1,11 @@
-import React, { useState } from "react"
+import React, { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { attendanceService } from "../../services/attendance"
 import { AdminDataPageLayout } from "../../components/admin/AdminDataPageLayout"
 import { Button } from "@/components/ui/button"
-import { Plus, Trash2, Clock, CalendarDays } from "lucide-react"
+import { Plus, Trash2, Clock, CalendarDays, AlertCircle } from "lucide-react"
 import { ConferenceDay, AttendancePeriod } from "@trackmun/shared"
+import { toast } from "sonner"
 import {
   Table,
   TableBody,
@@ -51,7 +52,11 @@ export const AdminAttendancePage: React.FC = () => {
       setCreating(false)
       setNewDate("")
       setNewName("")
+      toast.success("Conference day created")
     },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to create day")
+    }
   })
 
   const deleteMutation = useMutation({
@@ -59,7 +64,11 @@ export const AdminAttendancePage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendance-days"] })
       setDeletingId(null)
+      toast.success("Conference day deleted")
     },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to delete day")
+    }
   })
 
   const replacePeriodsMutation = useMutation({
@@ -68,8 +77,31 @@ export const AdminAttendancePage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendance-days"] })
       setEditingDay(null)
+      toast.success("Attendance periods updated")
     },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to update periods")
+    }
   })
+
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const isDateInPast = newDate !== "" && newDate < today
+
+  const periodError = useMemo(() => {
+    for (let i = 0; i < localPeriods.length; i++) {
+      const p = localPeriods[i]
+      if (p.startTime >= p.endTime) {
+        return `Period ${i + 1}: Start time must be before end time`
+      }
+      for (let j = i + 1; j < localPeriods.length; j++) {
+        const other = localPeriods[j]
+        if (p.startTime < other.endTime && other.startTime < p.endTime) {
+          return `Period ${i + 1} and Period ${j + 1} overlap`
+        }
+      }
+    }
+    return null
+  }, [localPeriods])
 
   const openEditModal = (day: AugmentedDay) => {
     setEditingDay(day)
@@ -206,7 +238,14 @@ export const AdminAttendancePage: React.FC = () => {
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
+                className={isDateInPast ? "border-destructive" : ""}
               />
+              {isDateInPast && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="size-3" />
+                  Date must be today or in the future
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -215,9 +254,9 @@ export const AdminAttendancePage: React.FC = () => {
             </Button>
             <Button 
               onClick={() => {
-                if (newDate.trim() && newName.trim()) createMutation.mutate({ name: newName.trim(), date: newDate.trim() })
+                if (newDate.trim() && newName.trim() && !isDateInPast) createMutation.mutate({ name: newName.trim(), date: newDate.trim() })
               }} 
-              disabled={createMutation.isPending || !newDate.trim() || !newName.trim()}
+              disabled={createMutation.isPending || !newDate.trim() || !newName.trim() || isDateInPast}
               isLoading={createMutation.isPending}
             >
               Add Day
@@ -303,6 +342,12 @@ export const AdminAttendancePage: React.FC = () => {
             <Button variant="outline" className="w-full border-dashed" onClick={handleAddPeriod}>
               <Plus className="mr-2 h-4 w-4" /> Add Period
             </Button>
+            {periodError && (
+              <p className="text-sm text-destructive flex items-center gap-2 bg-destructive/5 p-3 rounded-md border border-destructive/20">
+                <AlertCircle className="size-4 shrink-0" />
+                {periodError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingDay(null)} disabled={replacePeriodsMutation.isPending}>
@@ -311,6 +356,7 @@ export const AdminAttendancePage: React.FC = () => {
             <Button 
               onClick={handleSavePeriods}
               isLoading={replacePeriodsMutation.isPending}
+              disabled={!!periodError || replacePeriodsMutation.isPending}
             >
               Save Periods
             </Button>

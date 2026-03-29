@@ -7,6 +7,7 @@ import { initializeDb } from './db/client';
 import authRoutes from './routes/auth';
 import delegateRoutes from './routes/admin/delegates';
 import ocRoutes from './routes/admin/oc';
+import ocMemberRoutes from './routes/oc/index';
 import chairRoutes from './routes/admin/chairs';
 import setupRoutes from './routes/admin/setup';
 import benefitsRoutes from './routes/admin/benefits';
@@ -114,5 +115,6 @@ app.route('/admin/registration', adminRegistrationRoutes);
 app.route('/admin/councils', councilsRoutes);
 app.route('/registration', publicRegistrationRoutes);
 app.route('/upload', uploadRoutes);
+app.route('/oc', ocMemberRoutes);
 
 export default app;

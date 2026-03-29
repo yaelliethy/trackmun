@@ -17,10 +17,10 @@ export class CouncilsController {
   };
 
   create = async (c: AdminContext) => {
-    const body = await c.req.json<{ name?: string }>();
+    const body = await c.req.json<{ name?: string; shortName?: string }>();
     const name = body.name ?? '';
     try {
-      const row = await this.getService().create(name);
+      const row = await this.getService().create(name, body.shortName);
       return c.json({ success: true as const, data: row }, 201);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Failed to create council';
@@ -30,10 +30,10 @@ export class CouncilsController {
 
   update = async (c: AdminContext) => {
     const id = c.req.param('id') ?? '';
-    const body = await c.req.json<{ name?: string }>();
+    const body = await c.req.json<{ name?: string; shortName?: string }>();
     const name = body.name ?? '';
     try {
-      const row = await this.getService().update(id, name);
+      const row = await this.getService().update(id, name, body.shortName);
       if (!row) {
         return c.json({ success: false as const, error: 'Council not found' }, 404);
       }

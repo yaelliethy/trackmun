@@ -24,9 +24,13 @@ export class AttendanceService {
   }
 
   async createDay(name: string, date: string): Promise<ConferenceDay> {
+    const today = new Date().toISOString().slice(0, 10);
+    if (date < today) {
+      throw new Error('Date must be today or in the future');
+    }
+
     const id = crypto.randomUUID();
     const now = new Date();
-    
     await this.db.insert(conferenceDays).values({
       id,
       name,
@@ -48,6 +52,21 @@ export class AttendanceService {
   async replacePeriods(dayId: string, newPeriods: { startTime: string, endTime: string }[]): Promise<AttendancePeriod[]> {
     const now = new Date();
     
+    // Validate periods
+    for (let i = 0; i < newPeriods.length; i++) {
+      const p = newPeriods[i];
+      if (p.startTime >= p.endTime) {
+        throw new Error(`Period ${i + 1}: Start time must be before end time`);
+      }
+      
+      for (let j = i + 1; j < newPeriods.length; j++) {
+        const other = newPeriods[j];
+        if (p.startTime < other.endTime && other.startTime < p.endTime) {
+          throw new Error(`Period ${i + 1} and Period ${j + 1} overlap`);
+        }
+      }
+    }
+
     // Delete existing
     await this.db.delete(attendancePeriods).where(eq(attendancePeriods.dayId, dayId)).run();
     

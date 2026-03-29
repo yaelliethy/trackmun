@@ -51,6 +51,7 @@ export const impersonationLog = sqliteTable(
 // Delegate Profiles
 export const delegateProfiles = sqliteTable('delegate_profiles', {
   userId: text('user_id').primaryKey().references(() => users.id),
+  identifier: text('identifier').unique(), // e.g. SC-001, GA-042 — assigned on approval
   year: text('year'),
   country: text('country'),
   pressAgency: text('press_agency'),
@@ -70,6 +71,7 @@ export const councils = sqliteTable(
   {
     id: text('id').primaryKey(),
     name: text('name').notNull().unique(),
+    shortName: text('short_name'), // e.g. 'SC', 'GA' — used in delegate identifiers
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   },

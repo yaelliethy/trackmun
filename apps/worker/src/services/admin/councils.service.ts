@@ -11,6 +11,7 @@ export class CouncilsService {
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
+      shortName: r.shortName ?? null,
       createdAt:
         r.createdAt instanceof Date ? r.createdAt.getTime() : r.createdAt,
       updatedAt:
@@ -18,7 +19,7 @@ export class CouncilsService {
     }));
   }
 
-  async create(name: string): Promise<Council> {
+  async create(name: string, shortName?: string): Promise<Council> {
     const trimmed = name.trim();
     if (!trimmed) {
       throw new Error('Council name is required');
@@ -30,6 +31,7 @@ export class CouncilsService {
       .values({
         id,
         name: trimmed,
+        shortName: shortName?.trim().toUpperCase() ?? null,
         createdAt: now,
         updatedAt: now,
       })
@@ -37,12 +39,13 @@ export class CouncilsService {
     return {
       id,
       name: trimmed,
+      shortName: shortName?.trim().toUpperCase() ?? null,
       createdAt: now.getTime(),
       updatedAt: now.getTime(),
     };
   }
 
-  async update(id: string, name: string): Promise<Council | null> {
+  async update(id: string, name: string, shortName?: string): Promise<Council | null> {
     const trimmed = name.trim();
     if (!trimmed) {
       throw new Error('Council name is required');
@@ -50,7 +53,7 @@ export class CouncilsService {
     const now = new Date();
     await this.db
       .update(councils)
-      .set({ name: trimmed, updatedAt: now })
+      .set({ name: trimmed, shortName: shortName?.trim().toUpperCase() ?? undefined, updatedAt: now })
       .where(eq(councils.id, id))
       .run();
     const row = await this.db.select().from(councils).where(eq(councils.id, id)).get();
@@ -58,6 +61,7 @@ export class CouncilsService {
     return {
       id: row.id,
       name: row.name,
+      shortName: row.shortName ?? null,
       createdAt:
         row.createdAt instanceof Date ? row.createdAt.getTime() : row.createdAt,
       updatedAt:

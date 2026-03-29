@@ -9,7 +9,7 @@ import brand from "@/config/brand"
 
 interface ProtectedRouteProps {
   children: React.ReactNode
-  requiredRole?: string
+  requiredRole?: string | string[]
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
@@ -89,7 +89,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
               </CardContent>
             </Card>
           </div>
-          <p className="sr-only">Loading {brand.appName} admin…</p>
+          <p className="sr-only">Loading {brand.appName}…</p>
         </div>
       </div>
     )
@@ -102,7 +102,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     )
   }
 
-  if (requiredRole && user?.role !== requiredRole) {
+  const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
+  if (requiredRole && user && !allowedRoles.includes(user.role)) {
     return <Navigate to="/403" replace />
   }
 
