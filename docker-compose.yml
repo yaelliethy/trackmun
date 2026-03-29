@@ -31,7 +31,8 @@ services:
       - QR_SECRET=your-qr-secret-key-min-32-chars-5678
       - FRONTEND_URL=http://localhost:3000
     command: >
-      sh -c "echo 'Waiting for sqld network to be ready...' &&
+      sh -c "pnpm install &&
+             echo 'Waiting for sqld network to be ready...' &&
              sleep 10 &&
              echo 'Pushing database schema to sqld...' &&
              pnpm --filter @trackmun/worker run db:push &&
