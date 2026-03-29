@@ -18,6 +18,10 @@ services:
       - sqld
     volumes:
       - .:/app
+      - /app/node_modules
+      - /app/apps/worker/node_modules
+      - /app/apps/web/node_modules
+      - /app/packages/shared/node_modules
     ports:
       - "3000:3000"
       - "8787:8787"
