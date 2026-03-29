@@ -1,6 +1,7 @@
 import React from "react"
 import { useAuthStore } from "../../hooks/useAuthStore"
-import { LogOut, RefreshCw, CheckCircle2 } from "lucide-react"
+import { FullyPaidDashboard } from "./FullyPaidDashboard"
+import { LogOut, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useNavigate } from "react-router-dom"
 import { api } from "../../services/api"
@@ -45,65 +46,29 @@ export const DelegateDashboardPage: React.FC = () => {
   const { data: profile, isLoading, refetch } = useQuery({
     queryKey: ["delegate-profile"],
     queryFn: async () => {
-      const data = await api.get<DelegateProfile>("/delegates/profile")
+      // Add cache-busting timestamp to prevent browser caching
+      const data = await api.get<DelegateProfile>(
+        `/delegates/profile?t=${Date.now()}`
+      )
       return data
     },
+    refetchOnWindowFocus: false,  // Don't refetch when window regains focus
+    refetchOnReconnect: true,     // Refetch when network reconnects
+    staleTime: 0,                 // Data is immediately stale (always fetch fresh on refetch)
+    retry: false,                 // Don't retry on failure
   })
 
-  // Check if fully paid (both deposit and full registration are paid)
-  const isFullyPaid = profile?.depositPaymentStatus === "paid" && profile?.fullPaymentStatus === "paid"
+  // Check if fully paid (both deposit and full registration are explicitly "paid")
+  const isFullyPaid = 
+    profile?.depositPaymentStatus === "paid" && 
+    profile?.fullPaymentStatus === "paid"
 
   if (!user && !profile) return null
 
-  // If fully paid, show minimal "All Set!" dashboard
+  // If fully paid, show the fully-paid dashboard
+  // Only show if BOTH payment statuses are explicitly "paid"
   if (isFullyPaid) {
-    return (
-      <div className="min-h-screen bg-background">
-        {/* Topbar */}
-        <header className="sticky top-0 z-30 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <div className="mx-auto flex h-12 max-w-4xl items-center justify-between px-4 sm:px-6">
-            <div className="flex items-center gap-2.5">
-              <img
-                src={brand.logoPath}
-                alt=""
-                className="h-7 w-7 rounded object-contain"
-              />
-              <span className="text-sm font-semibold tracking-tight">
-                {brand.appName}
-              </span>
-              <span className="hidden text-xs text-muted-foreground/60 sm:inline">
-                / Delegate Portal
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ModeToggle />
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="h-8 gap-1.5 text-xs">
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Sign out</span>
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        {/* Page content */}
-        <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="flex min-h-[60vh] items-center justify-center"
-          >
-            <div className="text-center space-y-3">
-              <CheckCircle2 className="h-16 w-16 mx-auto text-success" />
-              <h2 className="text-2xl font-bold text-foreground">All Set!</h2>
-              <p className="text-muted-foreground max-w-md">
-                Your registration is complete. Conference details coming soon.
-              </p>
-            </div>
-          </motion.div>
-        </main>
-      </div>
-    )
+    return <FullyPaidDashboard />
   }
 
   return (
@@ -132,6 +97,7 @@ export const DelegateDashboardPage: React.FC = () => {
               onClick={() => refetch()}
               disabled={isLoading}
               className="h-8 w-8 p-0"
+              title="Refresh payment status"
             >
               <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             </Button>
@@ -173,7 +139,7 @@ export const DelegateDashboardPage: React.FC = () => {
                 <Skeleton className="h-10 w-full" />
               </CardContent>
             </Card>
-          ) : profile ? (
+          ) : (
             <>
               <div className="grid gap-6 sm:grid-cols-2">
                 {/* Registration Status Card */}
@@ -201,7 +167,7 @@ export const DelegateDashboardPage: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Country</span>
                       <span className="text-sm font-medium">
-                        {profile.country || <span className="text-muted-foreground/50">Not assigned</span>}
+                        {profile?.country || <span className="text-muted-foreground/50">Not assigned</span>}
                       </span>
                     </div>
                   </CardContent>
@@ -216,24 +182,24 @@ export const DelegateDashboardPage: React.FC = () => {
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">
-                        Deposit {profile.depositAmount ? `($${profile.depositAmount})` : ""}
+                        Deposit {profile?.depositAmount ? `($${profile.depositAmount})` : ""}
                       </span>
                       <Badge
-                        variant={profile.depositPaymentStatus === "paid" ? "success" : "secondary"}
+                        variant={profile?.depositPaymentStatus === "paid" ? "success" : "secondary"}
                         className="font-mono text-[10px]"
                       >
-                        {profile.depositPaymentStatus.toUpperCase()}
+                        {profile?.depositPaymentStatus?.toUpperCase() || "PENDING"}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">
-                        Full Registration {profile.fullAmount ? `($${profile.fullAmount})` : ""}
+                        Full Registration {profile?.fullAmount ? `($${profile.fullAmount})` : ""}
                       </span>
                       <Badge
-                        variant={profile.fullPaymentStatus === "paid" ? "success" : "secondary"}
+                        variant={profile?.fullPaymentStatus === "paid" ? "success" : "secondary"}
                         className="font-mono text-[10px]"
                       >
-                        {profile.fullPaymentStatus.toUpperCase()}
+                        {profile?.fullPaymentStatus?.toUpperCase() || "PENDING"}
                       </Badge>
                     </div>
                   </CardContent>
@@ -241,14 +207,8 @@ export const DelegateDashboardPage: React.FC = () => {
               </div>
 
               {/* Payment Proof Upload */}
-              <PaymentProofUpload currentKey={profile.paymentProofR2Key} />
+              <PaymentProofUpload currentKey={profile?.paymentProofR2Key} />
             </>
-          ) : (
-            <div className="flex min-h-[400px] items-center justify-center rounded-md border border-border/70 bg-card p-8">
-              <div className="text-center text-muted-foreground">
-                <p className="text-sm">Dashboard features coming soon.</p>
-              </div>
-            </div>
           )}
         </motion.div>
       </main>

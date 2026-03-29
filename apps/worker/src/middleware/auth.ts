@@ -14,7 +14,7 @@ export type AuthContext = {
 
 export const withAuth: MiddlewareHandler<{ Bindings: Bindings; Variables: AuthContext }> = async (c, next) => {
   const authHeader = c.req.header('Authorization');
-  
+
   if (!authHeader) {
     return c.json(
       { success: false, error: 'Please sign in to continue.', code: 'UNAUTHORIZED' },

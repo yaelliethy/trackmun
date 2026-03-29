@@ -4,23 +4,20 @@ import { SetupService } from '../../services/admin/setup.service';
 import { Bindings } from '../../types/env';
 import { getSupabaseAdmin } from '../../lib/supabase-admin';
 
-export class SetupController {
   init = async (c: Context<{ Bindings: Bindings }>) => {
     const db = getDb();
-    const service = new SetupService(db);
 
-    // 1. Check if database is empty
-    const isEmpty = await service.isDatabaseEmpty();
-    if (!isEmpty) {
-      return c.json({ 
-        success: false, 
-        error: 'Database is not empty. Initialization can only be performed on an empty database.' 
+    // Check if database is empty
+    const userCount = await db.select().from(users).get();
+    if (userCount) {
+      return c.json({
+        success: false,
+        error: 'Database is not empty. Initialization can only be performed on an empty database.',
       }, 400);
     }
 
-    const email = 'admin@trackmun.app';
-    const password = 'Password123!';
-    const name = 'System Admin';
+    return this.createAdminUser(c, db);
+  };
 
     try {
       console.log('[SetupController] Starting admin setup...');
@@ -55,8 +52,8 @@ export class SetupController {
         }
       });
     } catch (error: any) {
-      console.error('Setup error:', error);
+      console.error('Admin setup error:', error);
       return c.json({ success: false, error: error.message }, 500);
     }
-  };
+  }
 }

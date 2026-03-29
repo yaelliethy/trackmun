@@ -31,9 +31,21 @@ export const LoginPage: React.FC = () => {
       localStorage.removeItem("impersonation_token")
       localStorage.removeItem("impersonated_user")
 
-      setUser(loginRes.user)
+<<<<<<< HEAD
+=======
+      localStorage.setItem("refresh_token", loginRes.token)
 
-      console.log("Login successful:", loginRes.user)
+      const tokenRes = await api.get<{ token?: string; accessToken?: string }>("/auth/token")
+      
+      const accessToken = tokenRes.token ?? tokenRes.accessToken
+      if (!accessToken) {
+        throw new Error("No access token received from /auth/token")
+      }
+      
+      localStorage.setItem("auth_token", accessToken)
+
+>>>>>>> 96fc05dfe3e7c5d3af004f409ab0c4ea51a264b0
+      setUser(loginRes.user)
 
       // Redirect based on role
       switch (loginRes.user.role) {
