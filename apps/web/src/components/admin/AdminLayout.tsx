@@ -19,7 +19,7 @@ export const AdminLayout: React.FC = () => {
     localStorage.removeItem("auth_token")
     localStorage.removeItem("refresh_token")
     setUser(null)
-    navigate("/admin/login")
+    navigate("/login")
   }
 
   return (

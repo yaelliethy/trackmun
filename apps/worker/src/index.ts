@@ -152,11 +152,11 @@ app.openapi(
 app.route('/auth', authRoutes);
 
 app.route('/admin/delegates', delegateRoutes);
-app.route('/delegates', delegateProfileRoutes);
 app.route('/admin/oc', ocRoutes);
 app.route('/admin/chairs', chairRoutes);
 app.route('/admin/setup', setupRoutes);
 app.route('/delegates/setup', delegateSetupRoutes);
+app.route('/delegates', delegateProfileRoutes);
 app.route('/admin/benefits', benefitsRoutes);
 app.route('/admin/attendance', attendanceRoutes);
 app.route('/admin/admins', adminsRoutes);

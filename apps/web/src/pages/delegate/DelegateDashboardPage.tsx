@@ -36,31 +36,22 @@ export const DelegateDashboardPage: React.FC = () => {
   const handleLogout = async () => {
     try {
       await api.post("/auth/sign-out", {})
-    } catch {}
+    } catch { }
     localStorage.removeItem("auth_token")
     localStorage.removeItem("refresh_token")
     setUser(null)
     navigate("/login")
   }
 
-  const { data: profile, isLoading, refetch } = useQuery({
+  const { data: profile, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["delegate-profile"],
-    queryFn: async () => {
-      // Add cache-busting timestamp to prevent browser caching
-      const data = await api.get<DelegateProfile>(
-        `/delegates/profile?t=${Date.now()}`
-      )
-      return data
-    },
-    refetchOnWindowFocus: false,  // Don't refetch when window regains focus
-    refetchOnReconnect: true,     // Refetch when network reconnects
-    staleTime: 0,                 // Data is immediately stale (always fetch fresh on refetch)
-    retry: false,                 // Don't retry on failure
+    queryFn: async () => api.get<DelegateProfile>("/delegates/profile"),
+    retry: false,
   })
 
   // Check if fully paid (both deposit and full registration are explicitly "paid")
-  const isFullyPaid = 
-    profile?.depositPaymentStatus === "paid" && 
+  const isFullyPaid =
+    profile?.depositPaymentStatus === "paid" &&
     profile?.fullPaymentStatus === "paid"
 
   if (!user && !profile) return null
@@ -95,11 +86,11 @@ export const DelegateDashboardPage: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={() => refetch()}
-              disabled={isLoading}
+              disabled={isFetching}
               className="h-8 w-8 p-0"
               title="Refresh payment status"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </Button>
             <Button variant="ghost" size="sm" onClick={handleLogout} className="h-8 gap-1.5 text-xs">
               <LogOut className="h-3.5 w-3.5" />
@@ -156,8 +147,8 @@ export const DelegateDashboardPage: React.FC = () => {
                           user?.registrationStatus === "approved"
                             ? "success"
                             : user?.registrationStatus === "rejected"
-                            ? "destructive"
-                            : "secondary"
+                              ? "destructive"
+                              : "secondary"
                         }
                         className="font-mono text-[10px]"
                       >

@@ -22,7 +22,6 @@ export const OCAttendancePage: React.FC = () => {
     queryFn: async () => {
       return await ocService.getActivePeriod()
     },
-    refetchInterval: 30000, // Refetch every 30s
   })
 
   // Search delegates

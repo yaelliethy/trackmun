@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { authService } from "../../services/auth"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate, useLocation, Link } from "react-router-dom"
 import { useAuthStore } from "../../hooks/useAuthStore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,7 +17,19 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
 
   const navigate = useNavigate()
+  const location = useLocation()
   const { setUser } = useAuthStore()
+
+  const fromPath =
+    (location.state as { from?: { pathname?: string } } | null)?.from
+      ?.pathname ?? null
+  const redirectAfterLogin =
+    fromPath &&
+      fromPath.startsWith("/") &&
+      !fromPath.startsWith("//") &&
+      fromPath !== "/login"
+      ? fromPath
+      : null
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,35 +43,18 @@ export const LoginPage: React.FC = () => {
       localStorage.removeItem("impersonation_token")
       localStorage.removeItem("impersonated_user")
 
-<<<<<<< HEAD
-=======
-      localStorage.setItem("refresh_token", loginRes.token)
-
-      const tokenRes = await api.get<{ token?: string; accessToken?: string }>("/auth/token")
-      
-      const accessToken = tokenRes.token ?? tokenRes.accessToken
-      if (!accessToken) {
-        throw new Error("No access token received from /auth/token")
-      }
-      
-      localStorage.setItem("auth_token", accessToken)
-
->>>>>>> 96fc05dfe3e7c5d3af004f409ab0c4ea51a264b0
       setUser(loginRes.user)
 
-      // Redirect based on role
-      switch (loginRes.user.role) {
-        case "admin":
-        case "chair":
-        case "oc":
-          navigate("/admin/delegates", { replace: true })
-          break
-        case "delegate":
-          navigate("/delegate/dashboard", { replace: true })
-          break
-        default:
-          navigate("/login", { replace: true })
-      }
+      const roleDefault =
+        loginRes.user.role === "oc"
+          ? "/oc"
+          : loginRes.user.role === "admin" || loginRes.user.role === "chair"
+            ? "/admin/"
+            : loginRes.user.role === "delegate"
+              ? "/delegate/dashboard"
+              : "/login"
+
+      navigate(redirectAfterLogin ?? roleDefault, { replace: true })
     } catch (err: any) {
       console.error("Login error:", err)
       setError(err.message || "Invalid email or password. Please check your credentials and try again.")

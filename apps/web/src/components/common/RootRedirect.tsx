@@ -58,9 +58,10 @@ export const RootRedirect: React.FC = () => {
 
 function getRedirectPath(role: string): string {
   switch (role) {
+    case "oc":
+      return "/oc"
     case "admin":
     case "chair":
-    case "oc":
       return "/admin/delegates"
     case "delegate":
       return "/delegate/dashboard"

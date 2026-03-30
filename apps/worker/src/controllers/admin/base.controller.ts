@@ -81,7 +81,8 @@ export class AdminController {
     const body = await c.req.json();
 
     const service = this.getService();
-    const user = await service.updateUser(id, body);
+    const supabase = getSupabaseAdmin(c.env);
+    const user = await service.updateUser(id, body, supabase);
 
     if (!user) {
       return c.json({ success: false as const, error: 'User not found' }, 404);
@@ -95,8 +96,9 @@ export class AdminController {
     const admin = c.get('user');
 
     const service = this.getService();
+    const supabase = getSupabaseAdmin(c.env);
     try {
-      await service.deleteUser(id, admin.id);
+      await service.deleteUser(id, admin.id, supabase);
       return c.json({ success: true as const, data: null }, 200);
     } catch (error: any) {
       return c.json({ success: false as const, error: error.message as string }, 400);

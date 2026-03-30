@@ -28,7 +28,7 @@ routes.openapi(
     },
     summary: 'List conference days',
   }),
-  attendanceController.listDays
+  attendanceController.listDays as any
 );
 
 routes.openapi(
@@ -55,7 +55,7 @@ routes.openapi(
     },
     summary: 'Create conference day',
   }),
-  attendanceController.createDay
+  attendanceController.createDay as any
 );
 
 routes.openapi(
@@ -80,7 +80,7 @@ routes.openapi(
     },
     summary: 'Delete conference day',
   }),
-  attendanceController.deleteDay
+  attendanceController.deleteDay as any
 );
 
 routes.openapi(
@@ -119,7 +119,7 @@ routes.openapi(
     },
     summary: 'Replace attendance periods',
   }),
-  attendanceController.replacePeriods
+  attendanceController.replacePeriods as any
 );
 
 export default routes;

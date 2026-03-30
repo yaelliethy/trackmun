@@ -1,4 +1,5 @@
 import React, { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { chairsService } from "../../services/chairs"
 import { UserTable } from "../../components/admin/UserTable"
@@ -23,6 +24,7 @@ export const AdminChairsPage: React.FC = () => {
   const [creatingUser, setCreatingUser] = useState(false)
 
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { startImpersonation } = useAuthStore()
 
   const { data, isLoading } = useQuery({
@@ -66,6 +68,7 @@ export const AdminChairsPage: React.FC = () => {
     try {
       const { token } = await chairsService.impersonate(user.id)
       startImpersonation(token, user)
+      navigate("/admin/delegates", { replace: true })
     } catch (err) {
       console.error("Impersonation failed:", err)
     }

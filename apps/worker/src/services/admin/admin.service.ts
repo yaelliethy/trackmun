@@ -19,6 +19,7 @@ import {
 import { eq, or, inArray, count, and, like, SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { OcService } from '../oc/oc.service';
+import { SupabaseAdmin } from '../../lib/supabase-admin';
 
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
 
@@ -107,7 +108,7 @@ export class AdminService {
     };
   }
 
-  async updateUser(id: string, input: UpdateUserInput): Promise<User | null> {
+  async updateUser(id: string, input: UpdateUserInput, supabase?: SupabaseAdmin): Promise<User | null> {
     const updates: Record<string, any> = {};
     if (input.name !== undefined) updates.name = input.name;
     if (input.council !== undefined) updates.council = input.council;
@@ -122,6 +123,20 @@ export class AdminService {
     }
 
     await this.db.update(users).set(updates).where(eq(users.id, id)).run();
+    
+    // Sync with Supabase if it affects authentication/identity
+    if (supabase && (updates.name !== undefined || updates.email !== undefined)) {
+      try {
+        await supabase.updateUser(id, {
+          user_metadata: updates.name ? { name: updates.name } : undefined,
+          email: updates.email,
+        });
+      } catch (e) {
+        console.error(`[AdminService] Failed to sync update to Supabase for user ${id}:`, e);
+        // We don't throw here to avoid rolling back the Turso update, 
+        // but it's now logged.
+      }
+    }
 
     // Auto-assign delegate identifier when status changes to 'approved'
     // @ts-ignore
@@ -136,7 +151,7 @@ export class AdminService {
     return this.getUserById(id);
   }
 
-  async deleteUser(id: string, adminId: string): Promise<boolean> {
+  async deleteUser(id: string, adminId: string, supabase?: SupabaseAdmin): Promise<boolean> {
     if (id === adminId) {
       throw new Error('Cannot delete yourself');
     }
@@ -199,6 +214,16 @@ export class AdminService {
     await this.db.delete(qrScanLog).where(eq(qrScanLog.scannedBy, id)).run();
 
     await this.db.delete(users).where(eq(users.id, id)).run();
+
+    // Sync deletion with Supabase
+    if (supabase) {
+      try {
+        await supabase.deleteUser(id);
+      } catch (e) {
+        console.error(`[AdminService] Failed to sync deletion to Supabase for user ${id}:`, e);
+        // User might already be deleted in Supabase or it might be down.
+      }
+    }
 
     return true;
   }

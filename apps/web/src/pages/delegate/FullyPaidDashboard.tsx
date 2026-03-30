@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import QRCode from "react-qr-code"
+import { useQuery } from "@tanstack/react-query"
+import { useTheme } from "next-themes"
 
 interface DelegateProfile {
   userId: string
@@ -49,75 +51,61 @@ interface Award {
   notes?: string | null
 }
 
+async function safeDelegateList<T>(path: string): Promise<T[]> {
+  try {
+    return await api.get<T[]>(path)
+  } catch {
+    return []
+  }
+}
+
 export const FullyPaidDashboard: React.FC = () => {
   const { user, setUser } = useAuthStore()
   const navigate = useNavigate()
-  const [profile, setProfile] = useState<DelegateProfile | null>(null)
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
-  const [benefits, setBenefits] = useState<Benefit[]>([])
-  const [awards, setAwards] = useState<Award[]>([])
-  const [loading, setLoading] = useState(true)
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
+  const { resolvedTheme } = useTheme()
+  const isDarkQr = resolvedTheme === "dark"
+  /** Modules only; background is transparent so the card shows through. */
+  const qrFg = isDarkQr ? "#ffffff" : "#000000"
+  const qrBg = "#00000000"
+
+  const { data: profile } = useQuery({
+    queryKey: ["delegate-profile"],
+    queryFn: () => api.get<DelegateProfile>("/delegates/profile"),
+    retry: false,
+  })
+
+  const { data: attendance = [], isPending: attendanceLoading } = useQuery({
+    queryKey: ["delegate-attendance"],
+    queryFn: () => safeDelegateList<AttendanceRecord>("/delegates/attendance"),
+    retry: false,
+  })
+
+  const { data: benefits = [], isPending: benefitsLoading } = useQuery({
+    queryKey: ["delegate-benefits"],
+    queryFn: () => safeDelegateList<Benefit>("/delegates/benefits"),
+    retry: false,
+  })
+
+  const { data: awards = [], isPending: awardsLoading } = useQuery({
+    queryKey: ["delegate-awards"],
+    queryFn: () => safeDelegateList<Award>("/delegates/awards"),
+    retry: false,
+  })
+
+  const listLoading = attendanceLoading || benefitsLoading || awardsLoading
 
   const handleLogout = async () => {
     try {
       await api.post("/auth/sign-out", {})
-    } catch {}
+    } catch { }
     localStorage.removeItem("auth_token")
     localStorage.removeItem("refresh_token")
     setUser(null)
     navigate("/login")
   }
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch profile with cache-busting
-        const profileData = await api.get<DelegateProfile>(
-          `/delegates/profile?t=${Date.now()}`
-        )
-        setProfile(profileData)
-
-        // Fetch attendance with cache-busting
-        try {
-          const attendanceData = await api.get<AttendanceRecord[]>(
-            `/delegates/attendance?t=${Date.now()}`
-          )
-          setAttendance(attendanceData)
-        } catch (e) {
-          console.error("Failed to fetch attendance:", e)
-        }
-
-        // Fetch benefits with cache-busting
-        try {
-          const benefitsData = await api.get<Benefit[]>(
-            `/delegates/benefits?t=${Date.now()}`
-          )
-          setBenefits(benefitsData)
-        } catch (e) {
-          console.error("Failed to fetch benefits:", e)
-        }
-
-        // Fetch awards with cache-busting
-        try {
-          const awardsData = await api.get<Award[]>(
-            `/delegates/awards?t=${Date.now()}`
-          )
-          setAwards(awardsData)
-        } catch (e) {
-          console.error("Failed to fetch awards:", e)
-        }
-      } catch (err) {
-        console.error("Failed to fetch delegate data:", err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    void fetchData()
-  }, [])
-
-  if (!user && !profile) return null
+  if (!user) return null
 
   // Generate unique identifier: [COUNCIL ACRONYM]-[4-digit random number based on user ID]
   // Extract committee acronym from council name (e.g., "Human Rights Council" -> "HRC")
@@ -144,9 +132,9 @@ export const FullyPaidDashboard: React.FC = () => {
 
   const councilAcronym = profile?.council ? getCouncilAcronym(profile.council) : 'DELEGATE'
   // Generate consistent 4-digit number from user ID
-  const delegateNumber = user?.id 
+  const delegateNumber = user?.id
     ? (Math.abs(user.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10000)
-        .toString().padStart(4, '0'))
+      .toString().padStart(4, '0'))
     : '0000'
   const uniqueId = `${councilAcronym}-${delegateNumber}`
 
@@ -192,52 +180,39 @@ export const FullyPaidDashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="border-border/70 overflow-hidden">
-              <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-primary/10">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-primary text-primary-foreground">
-                    <QrCode className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">Your Delegate QR Code</p>
-                    <p className="text-xs text-muted-foreground">Scan for quick check-in</p>
-                  </div>
+            <button
+              onClick={() => setQrDialogOpen(true)}
+              className="w-full group"
+            >
+              <div className="relative aspect-square max-w-[280px] mx-auto bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10 rounded-2xl p-6 group-hover:from-primary/15 group-hover:via-primary/8 group-hover:to-primary/15 transition-all duration-300 shadow-sm group-hover:shadow-md">
+                {/* Decorative corners */}
+                <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-primary/30 rounded-tl-lg" />
+                <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-primary/30 rounded-tr-lg" />
+                <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-primary/30 rounded-bl-lg" />
+                <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-primary/30 rounded-br-lg" />
+
+                {/* QR Code */}
+                {/* <div className="relative flex h-full items-center justify-center rounded-xl bg-transparent p-4"> */}
+                <QRCode
+                  value={uniqueId}
+                  size={180}
+                  level="M"
+                  fgColor={qrFg}
+                  bgColor={qrBg}
+                  className="mx-auto p-4"
+                />
+                {/* </div> */}
+
+                {/* Identifier below QR */}
+                <div className="mt-4 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Delegate ID</p>
+                  <p className="text-lg font-bold text-primary font-mono tracking-wider">{uniqueId}</p>
                 </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <button
-                  onClick={() => setQrDialogOpen(true)}
-                  className="w-full group"
-                >
-                  <div className="relative aspect-square max-w-[280px] mx-auto bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10 rounded-2xl p-6 group-hover:from-primary/15 group-hover:via-primary/8 group-hover:to-primary/15 transition-all duration-300 shadow-sm group-hover:shadow-md">
-                    {/* Decorative corners */}
-                    <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-primary/30 rounded-tl-lg" />
-                    <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-primary/30 rounded-tr-lg" />
-                    <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-primary/30 rounded-bl-lg" />
-                    <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-primary/30 rounded-br-lg" />
-                    
-                    {/* QR Code */}
-                    <div className="relative h-full flex items-center justify-center bg-white rounded-xl p-4 shadow-inner">
-                      <QRCode
-                        value={uniqueId}
-                        size={180}
-                        level="M"
-                        className="mx-auto"
-                      />
-                    </div>
-                    
-                    {/* Identifier below QR */}
-                    <div className="mt-4 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Delegate ID</p>
-                      <p className="text-lg font-bold text-primary font-mono tracking-wider">{uniqueId}</p>
-                    </div>
-                  </div>
-                  <p className="text-center text-xs text-muted-foreground mt-3 group-hover:text-primary transition-colors">
-                    Tap to view full size
-                  </p>
-                </button>
-              </CardContent>
-            </Card>
+                <p className="text-center text-xs text-muted-foreground mt-3 transition-colors">
+                  Tap to view full size
+                </p>
+              </div>
+            </button>
           </motion.div>
 
           {/* Personal Details */}
@@ -286,7 +261,7 @@ export const FullyPaidDashboard: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                {loading ? (
+                {listLoading ? (
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 ) : attendance.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No attendance records yet</p>
@@ -324,7 +299,7 @@ export const FullyPaidDashboard: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                {loading ? (
+                {listLoading ? (
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 ) : benefits.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No benefits redeemed yet</p>
@@ -395,24 +370,26 @@ export const FullyPaidDashboard: React.FC = () => {
                 <p className="text-xs text-muted-foreground">Show this for scanning</p>
               </div>
             </div>
-            
+
             {/* QR Code with decorative frame */}
-            <div className="relative bg-white rounded-2xl p-6 shadow-lg">
+            <div className="relative rounded-2xl bg-transparent p-6">
               {/* Corner accents */}
-              <div className="absolute top-3 left-3 w-10 h-10 border-l-4 border-t-4 border-primary/40 rounded-tl-xl" />
+              {/* <div className="absolute top-3 left-3 w-10 h-10 border-l-4 border-t-4 border-primary/40 rounded-tl-xl" />
               <div className="absolute top-3 right-3 w-10 h-10 border-r-4 border-t-4 border-primary/40 rounded-tr-xl" />
               <div className="absolute bottom-3 left-3 w-10 h-10 border-l-4 border-b-4 border-primary/40 rounded-bl-xl" />
-              <div className="absolute bottom-3 right-3 w-10 h-10 border-r-4 border-b-4 border-primary/40 rounded-br-xl" />
-              
+              <div className="absolute bottom-3 right-3 w-10 h-10 border-r-4 border-b-4 border-primary/40 rounded-br-xl" /> */}
+
               <div className="flex items-center justify-center">
                 <QRCode
                   value={uniqueId}
                   size={260}
                   level="M"
+                  fgColor={qrFg}
+                  bgColor={qrBg}
                 />
               </div>
             </div>
-            
+
             {/* Delegate ID */}
             <div className="mt-5 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Delegate Identifier</p>

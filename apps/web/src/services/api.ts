@@ -23,13 +23,8 @@ export async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-<<<<<<< HEAD
   const token = await getAuthToken();
   
-=======
-  let token = getAuthToken();
-
->>>>>>> 96fc05dfe3e7c5d3af004f409ab0c4ea51a264b0
   const headers = new Headers(options.headers);
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);

@@ -12,10 +12,16 @@ TURSO_DATABASE_URL="libsql://your-org-your-db.turso.io"
 TURSO_AUTH_TOKEN="your-turso-auth-token"
 
 # ===========================================
-# Better Auth Configuration
 # ===========================================
-BETTER_AUTH_SECRET="your-better-auth-secret-min-32-chars"
-BETTER_AUTH_URL="http://localhost:8787"
+# Supabase Auth (Worker verifies JWTs; Admin API for user provisioning)
+# ===========================================
+# pnpm db:reset runs scripts/clear-supabase-auth.sh when these are set; that script needs `jq` installed.
+# Dashboard: Project Settings → API
+SUPABASE_URL="https://your-project.supabase.co"
+SUPABASE_ANON_KEY="your-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+SUPABASE_JWT_SECRET="your-jwt-secret-from-project-settings"
+
 IMPERSONATION_SECRET="your-long-random-secret"
 
 # ===========================================

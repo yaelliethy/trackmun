@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { AdminLoginPage } from './pages/admin/AdminLoginPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { DelegateDashboardPage } from './pages/delegate/DelegateDashboardPage';
 import { AdminDelegatesPage } from './pages/admin/AdminDelegatesPage';
@@ -28,9 +27,6 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/register/success" element={<RegistrationSuccessPage />} />
         <Route path="/login" element={<LoginPage />} />
-
-        {/* Public Admin Routes */}
-        <Route path="/admin/login" element={<AdminLoginPage />} />
 
         {/* Protected Delegate Routes */}
         <Route path="/delegate" element={

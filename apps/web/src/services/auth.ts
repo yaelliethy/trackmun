@@ -31,6 +31,8 @@ export const authService = {
   },
 
   signOut: async () => {
+    localStorage.removeItem("impersonation_token");
+    localStorage.removeItem("impersonated_user");
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     return null;

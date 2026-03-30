@@ -68,13 +68,20 @@ export const AdminDelegatesPage: React.FC = () => {
   })
 
   const paymentMutation = useMutation({
-    mutationFn: ({ id, field, status }: { id: string, field: "depositPaymentStatus" | "fullPaymentStatus", status: "pending" | "paid" }) => {
-      const payload: any = {}
+    mutationFn: async ({
+      id,
+      field,
+      status,
+    }: {
+      id: string
+      field: "depositPaymentStatus" | "fullPaymentStatus"
+      status: "pending" | "paid"
+    }) => {
+      const payload: Record<string, "pending" | "paid"> = {}
       payload[field] = status
-      return delegatesService.updatePaymentStatus(id, payload)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["delegates"] })
+      await delegatesService.updatePaymentStatus(id, payload)
+      await queryClient.refetchQueries({ queryKey: ["delegates"] })
+      await queryClient.refetchQueries({ queryKey: ["delegate-profile"] })
     },
   })
 
@@ -117,6 +124,14 @@ export const AdminDelegatesPage: React.FC = () => {
         onDelete={setDeletingUser}
         onViewResponses={handleViewResponses}
         onReviewPayment={setReviewingPaymentUser}
+        paymentPending={
+          paymentMutation.isPending && paymentMutation.variables
+            ? {
+                userId: paymentMutation.variables.id,
+                field: paymentMutation.variables.field,
+              }
+            : null
+        }
         onTogglePaymentStatus={(user, field, currentStatus) => {
           paymentMutation.mutate({
             id: user.id,

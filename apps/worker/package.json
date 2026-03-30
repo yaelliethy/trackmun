@@ -12,7 +12,7 @@
     "db:generate": "drizzle-kit generate:sqlite",
     "db:migrate": "wrangler d1 migrations apply DB --local",
     "db:push": "drizzle-kit push:sqlite",
-    "db:reset": "sh ../../scripts/clear-sqld.sh && rm -rf local.db && pnpm db:push"
+    "db:reset": "sh ../../scripts/clear-sqld.sh && bash ../../scripts/clear-supabase-auth.sh && sh ../../scripts/apply-turso-migrations.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1019.0",

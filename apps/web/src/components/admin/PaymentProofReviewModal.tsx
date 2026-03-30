@@ -35,7 +35,7 @@ export function PaymentProofReviewModal({
   )
 
   const paymentMutation = useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       id,
       field,
       status,
@@ -44,13 +44,11 @@ export function PaymentProofReviewModal({
       field: "depositPaymentStatus" | "fullPaymentStatus"
       status: "pending" | "paid"
     }) => {
-      const payload: any = {}
+      const payload: Record<string, "pending" | "paid"> = {}
       payload[field] = status
-      return delegatesService.updatePaymentStatus(id, payload)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["delegates"] })
-      queryClient.invalidateQueries({ queryKey: ["delegate-profile"] })
+      await delegatesService.updatePaymentStatus(id, payload)
+      await queryClient.refetchQueries({ queryKey: ["delegates"] })
+      await queryClient.refetchQueries({ queryKey: ["delegate-profile"] })
     },
   })
 
@@ -182,6 +180,11 @@ export function PaymentProofReviewModal({
                     handleStatusToggle("depositPaymentStatus", "pending")
                   }
                   disabled={paymentMutation.isPending}
+                  isLoading={
+                    paymentMutation.isPending &&
+                    paymentMutation.variables?.field === "depositPaymentStatus" &&
+                    paymentMutation.variables?.status === "pending"
+                  }
                 >
                   Mark Pending
                 </Button>
@@ -192,6 +195,11 @@ export function PaymentProofReviewModal({
                     handleStatusToggle("depositPaymentStatus", "paid")
                   }
                   disabled={paymentMutation.isPending}
+                  isLoading={
+                    paymentMutation.isPending &&
+                    paymentMutation.variables?.field === "depositPaymentStatus" &&
+                    paymentMutation.variables?.status === "paid"
+                  }
                   className={depositStatus === "paid" ? "bg-success text-success-foreground hover:bg-success/90" : ""}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-1" />
@@ -214,6 +222,11 @@ export function PaymentProofReviewModal({
                   size="sm"
                   onClick={() => handleStatusToggle("fullPaymentStatus", "pending")}
                   disabled={paymentMutation.isPending}
+                  isLoading={
+                    paymentMutation.isPending &&
+                    paymentMutation.variables?.field === "fullPaymentStatus" &&
+                    paymentMutation.variables?.status === "pending"
+                  }
                 >
                   Mark Pending
                 </Button>
@@ -222,6 +235,11 @@ export function PaymentProofReviewModal({
                   size="sm"
                   onClick={() => handleStatusToggle("fullPaymentStatus", "paid")}
                   disabled={paymentMutation.isPending}
+                  isLoading={
+                    paymentMutation.isPending &&
+                    paymentMutation.variables?.field === "fullPaymentStatus" &&
+                    paymentMutation.variables?.status === "paid"
+                  }
                   className={fullStatus === "paid" ? "bg-success text-success-foreground hover:bg-success/90" : ""}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-1" />

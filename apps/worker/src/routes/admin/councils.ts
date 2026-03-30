@@ -28,7 +28,7 @@ routes.openapi(
     },
     summary: 'List councils',
   }),
-  councilsController.list
+  councilsController.list as any
 );
 
 routes.openapi(
@@ -54,7 +54,7 @@ routes.openapi(
     },
     summary: 'Create council',
   }),
-  councilsController.create
+  councilsController.create as any
 );
 
 routes.openapi(
@@ -81,7 +81,7 @@ routes.openapi(
     },
     summary: 'Update council',
   }),
-  councilsController.update
+  councilsController.update as any
 );
 
 routes.openapi(
@@ -101,7 +101,7 @@ routes.openapi(
     },
     summary: 'Delete council',
   }),
-  councilsController.delete
+  councilsController.delete as any
 );
 
 export default routes;

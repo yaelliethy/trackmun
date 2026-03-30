@@ -13,7 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Edit, Trash2, UserSearch, ExternalLink, Users, ClipboardList } from "lucide-react"
+import { Edit, Trash2, UserSearch, ExternalLink, Users, ClipboardList, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -32,27 +32,38 @@ interface UserTableProps {
     current: string
   ) => void
   onReviewPayment?: (user: User) => void
+  /** When set, shows a spinner on the matching payment badge while the toggle request is in flight. */
+  paymentPending?: {
+    userId: string
+    field: "depositPaymentStatus" | "fullPaymentStatus"
+  } | null
 }
 
 function PaymentBadge({
   status,
   onClick,
+  isPending,
 }: {
   status: string
   onClick?: () => void
+  isPending?: boolean
 }) {
   const isPaid = status === "paid"
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-wide transition-colors ${
+      disabled={isPending}
+      className={`inline-flex items-center justify-center gap-1 min-w-[4.25rem] rounded px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-wide transition-colors disabled:opacity-70 ${
         isPaid
           ? "bg-success/10 text-success hover:bg-success/20"
           : "bg-muted text-muted-foreground hover:bg-muted/80"
       }`}
       title="Click to toggle payment status"
     >
+      {isPending ? (
+        <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden />
+      ) : null}
       {isPaid ? "PAID" : "PENDING"}
     </button>
   )
@@ -68,6 +79,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   onImpersonate,
   onTogglePaymentStatus,
   onReviewPayment,
+  paymentPending,
 }) => {
   const isDelegateTable = users.some((u) => u.role === "delegate")
   const colCount =
@@ -178,6 +190,10 @@ export const UserTable: React.FC<UserTableProps> = ({
                           </span>
                           <PaymentBadge
                             status={user.depositPaymentStatus || "pending"}
+                            isPending={
+                              paymentPending?.userId === user.id &&
+                              paymentPending.field === "depositPaymentStatus"
+                            }
                             onClick={() =>
                               onTogglePaymentStatus?.(
                                 user,
@@ -193,6 +209,10 @@ export const UserTable: React.FC<UserTableProps> = ({
                           </span>
                           <PaymentBadge
                             status={user.fullPaymentStatus || "pending"}
+                            isPending={
+                              paymentPending?.userId === user.id &&
+                              paymentPending.field === "fullPaymentStatus"
+                            }
                             onClick={() =>
                               onTogglePaymentStatus?.(
                                 user,
