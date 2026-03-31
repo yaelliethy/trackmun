@@ -1,4 +1,12 @@
 import { Bindings } from '../types/env';
+import type { TrackmunAppMetadata } from './jwt-user-claims';
+
+export type SupabaseAdminUserResponse = {
+  id: string;
+  email?: string;
+  app_metadata?: Record<string, unknown>;
+  user_metadata?: Record<string, unknown>;
+};
 
 export class SupabaseAdmin {
   private url: string;
@@ -64,6 +72,52 @@ export class SupabaseAdmin {
       method: 'PUT',
       body: JSON.stringify(params),
     });
+  }
+
+  async getAdminUser(userId: string): Promise<SupabaseAdminUserResponse> {
+    return this.request<SupabaseAdminUserResponse>(`/auth/v1/admin/users/${userId}`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Merge `app_metadata.trackmun` so the next access JWT includes RBAC for Worker `withAuth` (no per-request Turso read).
+   */
+  async syncTrackmunJwtMetadata(
+    userId: string,
+    trackmun: TrackmunAppMetadata,
+    options?: { user_metadata?: Record<string, unknown> }
+  ): Promise<void> {
+    let existingApp: Record<string, unknown> = {};
+    let existingUserMeta: Record<string, unknown> = {};
+    try {
+      const existing = await this.getAdminUser(userId);
+      if (existing.app_metadata && typeof existing.app_metadata === 'object') {
+        existingApp = { ...existing.app_metadata };
+      }
+      if (existing.user_metadata && typeof existing.user_metadata === 'object') {
+        existingUserMeta = { ...existing.user_metadata };
+      }
+    } catch (e) {
+      console.warn(`[SupabaseAdmin] getAdminUser before sync failed for ${userId}:`, e);
+    }
+
+    const mergedTrackmun: TrackmunAppMetadata = {
+      ...trackmun,
+      createdAtMs: trackmun.createdAtMs ?? Date.now(),
+    };
+
+    const body: Record<string, unknown> = {
+      app_metadata: {
+        ...existingApp,
+        trackmun: mergedTrackmun,
+      },
+    };
+    if (options?.user_metadata && Object.keys(options.user_metadata).length > 0) {
+      body.user_metadata = { ...existingUserMeta, ...options.user_metadata };
+    }
+
+    await this.updateUser(userId, body);
   }
 }
 

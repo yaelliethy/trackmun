@@ -129,22 +129,6 @@ export const delegateAnswers = sqliteTable('delegate_answers', {
 }));
 
 
-// QR Tokens
-export const qrTokens = sqliteTable(
-  'qr_tokens',
-  {
-    token: text('token').primaryKey(),
-    userId: text('user_id').notNull().references(() => users.id),
-    purpose: text('purpose', { enum: ['attendance', 'benefit'] }).notNull(),
-    expiresAt: integer('expires_at').notNull(),
-    createdAt: integer('created_at').notNull().default(Math.floor(Date.now() / 1000)),
-  },
-  (table) => ({
-    userIdIdx: index('idx_user').on(table.userId),
-    expiresAtIdx: index('idx_expires').on(table.expiresAt),
-  })
-);
-
 // Attendance Records
 export const attendanceRecords = sqliteTable(
   'attendance_records',
@@ -158,6 +142,7 @@ export const attendanceRecords = sqliteTable(
   (table) => ({
     userIdIdx: index('idx_attendance_user').on(table.userId),
     sessionIdx: index('idx_attendance_session').on(table.sessionLabel, table.scannedAt),
+    userSessionUnique: unique().on(table.userId, table.sessionLabel),
   })
 );
 
@@ -174,20 +159,6 @@ export const benefitRedemptions = sqliteTable(
   (table) => ({
     userBenefitUnique: unique().on(table.userId, table.benefitType),
   })
-);
-
-// QR Scan Log
-export const qrScanLog = sqliteTable(
-  'qr_scan_log',
-  {
-    id: text('id').primaryKey(),
-    token: text('token').notNull(),
-    scannedBy: text('scanned_by').notNull().references(() => users.id),
-    result: text('result', {
-      enum: ['valid', 'expired', 'already_used', 'invalid_sig'],
-    }).notNull(),
-    scannedAt: integer('scanned_at').notNull().default(Math.floor(Date.now() / 1000)),
-  }
 );
 
 // Country Assignments
@@ -215,6 +186,30 @@ export const awards = sqliteTable('awards', {
   givenBy: text('given_by').notNull().references(() => users.id),
   notes: text('notes'),
   givenAt: integer('given_at').notNull().default(Math.floor(Date.now() / 1000)),
+});
+
+// QR (legacy tables; still referenced on user delete)
+export const qrTokens = sqliteTable(
+  'qr_tokens',
+  {
+    token: text('token').primaryKey(),
+    userId: text('user_id').notNull().references(() => users.id),
+    purpose: text('purpose').notNull(),
+    expiresAt: integer('expires_at').notNull(),
+    createdAt: integer('created_at').notNull().default(Math.floor(Date.now() / 1000)),
+  },
+  (table) => ({
+    userIdx: index('idx_user').on(table.userId),
+    expiresIdx: index('idx_expires').on(table.expiresAt),
+  })
+);
+
+export const qrScanLog = sqliteTable('qr_scan_log', {
+  id: text('id').primaryKey(),
+  token: text('token').notNull(),
+  scannedBy: text('scanned_by').notNull().references(() => users.id),
+  result: text('result').notNull(),
+  scannedAt: integer('scanned_at').notNull().default(Math.floor(Date.now() / 1000)),
 });
 
 // Press Posts
@@ -287,7 +282,6 @@ export const usersRelations = relations(users, ({ many, one }) => ({
     fields: [users.id],
     references: [delegateProfiles.userId],
   }),
-  qrTokens: many(qrTokens),
   attendanceRecords: many(attendanceRecords, {
     relationName: 'user_attendance',
   }),

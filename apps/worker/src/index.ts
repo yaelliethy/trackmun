@@ -63,48 +63,54 @@ app.onError((err, c) => {
   }, 500);
 });
 
-app.use('*', async (c, next) => {
-  // Initialize database middleware with comprehensive binding checks
-  const requiredBindings = [
-    'TURSO_DATABASE_URL',
-    'TURSO_AUTH_TOKEN',
-    'SUPABASE_URL',
-    'SUPABASE_ANON_KEY',
-    'SUPABASE_SERVICE_ROLE_KEY',
-    'SUPABASE_JWT_SECRET',
-    'IMPERSONATION_SECRET',
-  ];
+let initPromise: Promise<void> | null = null;
 
-  const isProduction = c.env.ENVIRONMENT === 'production';
-  const missing = requiredBindings.filter(key => {
-    const val = c.env[key as keyof Bindings];
-    if (!val || val === '') return true;
-    if (val === 'placeholder' && isProduction) return true;
-    return false;
-  });
-  
-  if (missing.length > 0) {
-    console.error(`Missing or invalid required bindings: ${missing.join(', ')}`);
-    return c.json({
-      success: false,
-      error: `Missing or invalid configuration keys: ${missing.join(', ')}. Please ensure all required secrets are set in Cloudflare or .dev.vars.`,
-      code: 'CONFIG_ERROR'
-    }, 500);
+app.use('*', async (c, next) => {
+  if (!initPromise) {
+    initPromise = (async () => {
+      // 1. Validate required bindings
+      const requiredBindings = [
+        'TURSO_DATABASE_URL',
+        'TURSO_AUTH_TOKEN',
+        'SUPABASE_URL',
+        'SUPABASE_ANON_KEY',
+        'SUPABASE_SERVICE_ROLE_KEY',
+        'SUPABASE_JWT_SECRET',
+        'IMPERSONATION_SECRET',
+      ];
+
+      const isProduction = c.env.ENVIRONMENT === 'production';
+      const missing = requiredBindings.filter(key => {
+        const val = c.env[key as keyof Bindings];
+        if (!val || val === '') return true;
+        if (val === 'placeholder' && isProduction) return true;
+        return false;
+      });
+      
+      if (missing.length > 0) {
+        const errorMsg = `Missing or invalid required bindings: ${missing.join(', ')}`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      // 2. Initialize database
+      initializeDb({
+        url: c.env.TURSO_DATABASE_URL,
+        authToken: c.env.TURSO_AUTH_TOKEN,
+      });
+    })();
   }
 
   try {
-    initializeDb({
-      url: c.env.TURSO_DATABASE_URL,
-      authToken: c.env.TURSO_AUTH_TOKEN,
-    });
-  } catch (err) {
-    console.error('Failed to initialize database:', err);
+    await initPromise;
+  } catch (err: any) {
     return c.json({
       success: false,
-      error: 'Failed to connect to database',
-      code: 'DATABASE_CONNECTION_ERROR'
-    }, 503);
+      error: err.message || 'Failed to initialize application',
+      code: 'INITIALIZATION_ERROR'
+    }, 500);
   }
+  
   return next();
 });
 

@@ -1,4 +1,4 @@
-import { DbType } from '../../db/client';
+import { DbType, getLibsqlClient, type InStatement } from '../../db/client';
 import { settings, registrationSteps, registrationQuestions, delegateAnswers, users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { RegistrationStep, RegistrationQuestion, Settings, DelegateResponse } from '@trackmun/shared';
@@ -7,7 +7,7 @@ export const COUNCIL_PREFERENCE_ALREADY_EXISTS =
   'Only one council preference question is allowed per registration form.';
 
 export class RegistrationService {
-  constructor(private db: DbType) {}
+  constructor(private db: DbType) { }
 
   async getSettings(): Promise<Settings> {
     const records = await this.db.select().from(settings).all();
@@ -23,23 +23,22 @@ export class RegistrationService {
 
   async updateSettings(newSettings: Settings): Promise<Settings> {
     const keys = Object.keys(newSettings) as Array<keyof Settings>;
-    const now = new Date();
+    const nowMs = Date.now();
+    const stmts: InStatement[] = [];
     for (const key of keys) {
       const value = newSettings[key];
       if (value !== undefined) {
         const stored =
           typeof value === 'boolean' ? (value ? 'true' : 'false') : value.toString();
-        await this.db.insert(settings).values({
-          id: crypto.randomUUID(),
-          key,
-          value: stored,
-          createdAt: now,
-          updatedAt: now,
-        }).onConflictDoUpdate({
-          target: settings.key,
-          set: { value: stored, updatedAt: now },
-        }).run();
+        stmts.push({
+          sql: `INSERT INTO settings (id, "key", value, created_at, updated_at) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT ("key") DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+          args: [crypto.randomUUID(), key, stored, nowMs, nowMs],
+        });
       }
+    }
+    if (stmts.length > 0) {
+      await getLibsqlClient().batch(stmts, 'write');
     }
     return this.getSettings();
   }

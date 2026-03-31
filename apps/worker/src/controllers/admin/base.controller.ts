@@ -64,11 +64,28 @@ export class AdminController {
         emailVerified: true,
       }).run();
 
+      try {
+        await supabase.syncTrackmunJwtMetadata(
+          res.id,
+          {
+            role: this.role,
+            registrationStatus: 'approved',
+            council: body.council ?? null,
+          },
+          { user_metadata: { name: body.name } }
+        );
+      } catch (e) {
+        console.error(`[AdminController] syncTrackmunJwtMetadata failed for ${res.id}:`, e);
+      }
+
       const service = this.getService();
-      const user = await service.updateUser(res.id, {
-        role: this.role as any,
-        council: body.council,
-      });
+      const user = await service.getUserById(res.id);
+      if (!user) {
+        return c.json(
+          { success: false as const, error: 'User was created but could not be loaded' },
+          500
+        );
+      }
 
       return c.json({ success: true as const, data: user }, 201);
     } catch (e: any) {

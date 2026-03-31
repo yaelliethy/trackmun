@@ -1,7 +1,7 @@
 import { User, UserRole } from '@trackmun/shared';
 import { DbType } from '../../db/client';
 import { users, impersonationLog, delegateProfiles, settings, delegateAnswers } from '../../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { getSupabaseAdmin } from '../../lib/supabase-admin';
 import { Bindings } from '../../types/env';
 
@@ -69,8 +69,35 @@ export class AuthService {
       registrationStatus: 'pending',
     }).run();
 
-    // Read settings to snapshot fee amounts
-    const settingsRows = await this.db.select().from(settings).all();
+    try {
+      await supabase.syncTrackmunJwtMetadata(
+        userId,
+        {
+          role: 'delegate',
+          registrationStatus: 'pending',
+          council: null,
+        },
+        {
+          user_metadata: {
+            name: fullName,
+            firstName: data.firstName,
+            lastName: data.lastName,
+          },
+        }
+      );
+    } catch (e) {
+      console.error(`[AuthService] syncTrackmunJwtMetadata failed for new delegate ${userId}:`, e);
+    }
+
+    const registrationSettingKeys = [
+      'registration_deposit_amount',
+      'registration_full_amount',
+    ] as const;
+    const settingsRows = await this.db
+      .select()
+      .from(settings)
+      .where(inArray(settings.key, [...registrationSettingKeys]))
+      .all();
     let depositAmount: number | null = null;
     let fullAmount: number | null = null;
     for (const row of settingsRows) {
@@ -89,19 +116,17 @@ export class AuthService {
       } as any)
       .run();
 
-    // Insert dynamic answers
-    if (data.answers) {
+    if (data.answers && Object.keys(data.answers).length > 0) {
       const now = new Date();
-      for (const [questionId, value] of Object.entries(data.answers)) {
-        await this.db.insert(delegateAnswers).values({
-          id: crypto.randomUUID(),
-          userId: userId,
-          questionId,
-          value,
-          createdAt: now,
-          updatedAt: now,
-        } as any).run();
-      }
+      const answerRows = Object.entries(data.answers).map(([questionId, value]) => ({
+        id: crypto.randomUUID(),
+        userId: userId,
+        questionId,
+        value,
+        createdAt: now,
+        updatedAt: now,
+      }));
+      await this.db.insert(delegateAnswers).values(answerRows as any[]).run();
     }
 
     return {

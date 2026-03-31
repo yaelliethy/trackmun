@@ -5,6 +5,7 @@ import { getDb } from '../db/client';
 import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { decodeJwtPayloadJson, verifySupabaseJwt } from '../lib/verify-supabase-jwt';
+import { userFromAccessTokenPayload } from '../lib/jwt-user-claims';
 
 export type AuthContext = {
   user: User;
@@ -62,7 +63,12 @@ export const withAuth: MiddlewareHandler<{ Bindings: Bindings; Variables: AuthCo
       );
       const sub = accessPayload?.sub;
       if (typeof sub === 'string') {
-        const user = await fetchUserFromD1(sub);
+        const fromClaims =
+          accessPayload && typeof accessPayload === 'object'
+            ? userFromAccessTokenPayload(accessPayload as Record<string, unknown>)
+            : null;
+
+        const user = fromClaims ?? (await fetchUserFromD1(sub));
         if (user) {
           c.set('user', user);
           c.set('isImpersonating', false);
@@ -99,7 +105,21 @@ export const withAuth: MiddlewareHandler<{ Bindings: Bindings; Variables: AuthCo
   );
 };
 
+const USER_CACHE_TTL_SECONDS = 300; // 5 minutes
+
 async function fetchUserFromD1(userId: string): Promise<User | null> {
+  const cache = (caches as any).default;
+  const cacheKey = `http://internal/user/${userId}`;
+  
+  try {
+    const cachedResponse = await cache.match(cacheKey);
+    if (cachedResponse) {
+      return await cachedResponse.json();
+    }
+  } catch (e) {
+    console.warn('Cache API mismatch or error:', e);
+  }
+
   const db = getDb();
   try {
     const user = await db.select().from(users).where(eq(users.id, userId)).get();
@@ -108,7 +128,7 @@ async function fetchUserFromD1(userId: string): Promise<User | null> {
       return null;
     }
     
-    return {
+    const mappedUser: User = {
       id: user.id,
       email: user.email,
       name: user.name,
@@ -118,27 +138,54 @@ async function fetchUserFromD1(userId: string): Promise<User | null> {
       created_at:
         user.createdAt instanceof Date ? user.createdAt.getTime() : user.createdAt,
     };
+
+    try {
+      const response = new Response(JSON.stringify(mappedUser), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': `public, max-age=${USER_CACHE_TTL_SECONDS}`,
+        },
+      });
+      // Use waitUntil if available on the context, but here we don't have it easily 
+      // without passing it down. For now, just await.
+      await cache.put(cacheKey, response);
+    } catch (e) {
+      console.warn('Failed to put in Cache API:', e);
+    }
+
+    return mappedUser;
   } catch (err) {
     console.error(`fetchUserFromD1: Database error for ID: ${userId}`, err);
     return null;
   }
 }
 
+const hmacVerifyKeyCache = new Map<string, CryptoKey>();
+
+async function getHmacVerifyKey(secret: string): Promise<CryptoKey> {
+  let key = hmacVerifyKeyCache.get(secret);
+  if (!key) {
+    const encoder = new TextEncoder();
+    key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+    hmacVerifyKeyCache.set(secret, key);
+  }
+  return key;
+}
+
 async function verifyHmacJwt(token: string, secret: string): Promise<boolean> {
   const [header, payload, signature] = token.split('.');
   const data = `${header}.${payload}`;
-  
+
   const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['verify']
-  );
-  
-  // Handle both standard and URL-safe base64
+  const key = await getHmacVerifyKey(secret);
+
   const normalizedSig = signature.replace(/-/g, '+').replace(/_/g, '/');
-  const sigBuf = Uint8Array.from(atob(normalizedSig), c => c.charCodeAt(0));
+  const sigBuf = Uint8Array.from(atob(normalizedSig), (c) => c.charCodeAt(0));
   return await crypto.subtle.verify('HMAC', key, sigBuf, encoder.encode(data));
 }

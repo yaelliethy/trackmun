@@ -18,6 +18,7 @@ export class SetupService {
         email,
         name,
         role: 'admin',
+        registrationStatus: 'approved',
         emailVerified: true,
       })
       .run();

@@ -1,5 +1,5 @@
 import { User, UserRole, UpdateUserSchema } from '@trackmun/shared';
-import { DbType } from '../../db/client';
+import { DbType, getLibsqlClient, type InStatement } from '../../db/client';
 import {
   users,
   delegateProfiles,
@@ -16,7 +16,7 @@ import {
   awards,
   qrScanLog,
 } from '../../db/schema';
-import { eq, or, inArray, count, and, like, SQL } from 'drizzle-orm';
+import { eq, or, inArray, count, and, like, SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { OcService } from '../oc/oc.service';
 import { SupabaseAdmin } from '../../lib/supabase-admin';
@@ -32,7 +32,7 @@ export interface UserFilters {
 }
 
 export class AdminService {
-  constructor(private db: DbType) {}
+  constructor(private db: DbType) { }
 
   async getUsersByRole(
     role: UserRole,
@@ -71,8 +71,12 @@ export class AdminService {
 
     const whereClause = and(...conditions);
 
-    const userList = await this.db
-      .select({ user: users, profile: delegateProfiles })
+    const rowsWithCount = await this.db
+      .select({
+        user: users,
+        profile: delegateProfiles,
+        total_count: sql<number>`COUNT(*) OVER()`,
+      })
       .from(users)
       .leftJoin(delegateProfiles, eq(users.id, delegateProfiles.userId))
       .where(whereClause)
@@ -81,13 +85,14 @@ export class AdminService {
       .offset(offset)
       .all();
 
-    const totalResult = await this.db
-      .select({ count: count() })
-      .from(users)
-      .leftJoin(delegateProfiles, eq(users.id, delegateProfiles.userId))
-      .where(whereClause)
-      .get();
+    // Extract the total count from the first row (all rows have the same total_count)
+    const totalCount = rowsWithCount.length > 0 ? rowsWithCount[0].total_count : 0;
 
+    // Extract just the users + profiles
+    const userList = rowsWithCount.map(row => ({
+      user: row.user,
+      profile: row.profile,
+    }));
     return {
       users: userList.map(({ user, profile }: any) => ({
         id: user.id,
@@ -104,7 +109,7 @@ export class AdminService {
         fullPaymentStatus: profile?.fullPaymentStatus ?? undefined,
         paymentProofR2Key: profile?.paymentProofR2Key ?? undefined,
       })),
-      total: totalResult?.count || 0,
+      total: totalCount || 0,
     };
   }
 
@@ -123,7 +128,7 @@ export class AdminService {
     }
 
     await this.db.update(users).set(updates).where(eq(users.id, id)).run();
-    
+
     // Sync with Supabase if it affects authentication/identity
     if (supabase && (updates.name !== undefined || updates.email !== undefined)) {
       try {
@@ -133,8 +138,6 @@ export class AdminService {
         });
       } catch (e) {
         console.error(`[AdminService] Failed to sync update to Supabase for user ${id}:`, e);
-        // We don't throw here to avoid rolling back the Turso update, 
-        // but it's now logged.
       }
     }
 
@@ -148,7 +151,24 @@ export class AdminService {
       }
     }
 
-    return this.getUserById(id);
+    const finalUser = await this.getUserById(id);
+    if (supabase && finalUser) {
+      try {
+        await supabase.syncTrackmunJwtMetadata(
+          id,
+          {
+            role: finalUser.role,
+            registrationStatus: finalUser.registrationStatus,
+            council: finalUser.council ?? null,
+          },
+          finalUser.name ? { user_metadata: { name: finalUser.name } } : undefined
+        );
+      } catch (e) {
+        console.error(`[AdminService] Failed to sync JWT app_metadata for user ${id}:`, e);
+      }
+    }
+
+    return finalUser;
   }
 
   async deleteUser(id: string, adminId: string, supabase?: SupabaseAdmin): Promise<boolean> {
@@ -156,64 +176,57 @@ export class AdminService {
       throw new Error('Cannot delete yourself');
     }
 
-    await this.db.delete(delegateAnswers).where(eq(delegateAnswers.userId, id)).run();
-    await this.db.delete(delegateProfiles).where(eq(delegateProfiles.userId, id)).run();
-
-    await this.db.delete(postReplies).where(eq(postReplies.authorId, id)).run();
-
     const authoredPosts = await this.db
       .select({ id: posts.id })
       .from(posts)
       .where(eq(posts.authorId, id))
       .all();
     const postIds = authoredPosts.map((p) => p.id);
+
+    const batchStmts: InStatement[] = [
+      { sql: 'DELETE FROM delegate_answers WHERE user_id = ?', args: [id] },
+      { sql: 'DELETE FROM delegate_profiles WHERE user_id = ?', args: [id] },
+      { sql: 'DELETE FROM post_replies WHERE author_id = ?', args: [id] },
+    ];
+
     if (postIds.length > 0) {
-      await this.db.delete(postReplies).where(inArray(postReplies.postId, postIds)).run();
-      await this.db.delete(postLikes).where(inArray(postLikes.postId, postIds)).run();
-      await this.db.delete(postMedia).where(inArray(postMedia.postId, postIds)).run();
-      await this.db.delete(posts).where(inArray(posts.id, postIds)).run();
+      const ph = postIds.map(() => '?').join(', ');
+      batchStmts.push(
+        { sql: `DELETE FROM post_replies WHERE post_id IN (${ph})`, args: [...postIds] },
+        { sql: `DELETE FROM post_likes WHERE post_id IN (${ph})`, args: [...postIds] },
+        { sql: `DELETE FROM post_media WHERE post_id IN (${ph})`, args: [...postIds] },
+        { sql: `DELETE FROM posts WHERE id IN (${ph})`, args: [...postIds] }
+      );
     }
 
-    await this.db.delete(postLikes).where(eq(postLikes.userId, id)).run();
+    batchStmts.push(
+      { sql: 'DELETE FROM post_likes WHERE user_id = ?', args: [id] },
+      {
+        sql: 'DELETE FROM benefit_redemptions WHERE user_id = ? OR scanned_by = ?',
+        args: [id, id],
+      },
+      {
+        sql: 'DELETE FROM attendance_records WHERE user_id = ? OR scanned_by = ?',
+        args: [id, id],
+      },
+      { sql: 'DELETE FROM qr_tokens WHERE user_id = ?', args: [id] },
+      {
+        sql: 'DELETE FROM impersonation_log WHERE admin_id = ? OR target_id = ?',
+        args: [id, id],
+      },
+      {
+        sql: 'DELETE FROM country_assignments WHERE user_id = ? OR assigned_by = ?',
+        args: [id, id],
+      },
+      {
+        sql: 'DELETE FROM awards WHERE user_id = ? OR given_by = ?',
+        args: [id, id],
+      },
+      { sql: 'DELETE FROM qr_scan_log WHERE scanned_by = ?', args: [id] },
+      { sql: 'DELETE FROM users WHERE id = ?', args: [id] }
+    );
 
-    await this.db
-      .delete(benefitRedemptions)
-      .where(
-        or(eq(benefitRedemptions.userId, id), eq(benefitRedemptions.scannedBy, id))
-      )
-      .run();
-
-    await this.db
-      .delete(attendanceRecords)
-      .where(
-        or(eq(attendanceRecords.userId, id), eq(attendanceRecords.scannedBy, id))
-      )
-      .run();
-
-    await this.db.delete(qrTokens).where(eq(qrTokens.userId, id)).run();
-
-    await this.db
-      .delete(impersonationLog)
-      .where(
-        or(eq(impersonationLog.adminId, id), eq(impersonationLog.targetId, id))
-      )
-      .run();
-
-    await this.db
-      .delete(countryAssignments)
-      .where(
-        or(eq(countryAssignments.userId, id), eq(countryAssignments.assignedBy, id))
-      )
-      .run();
-
-    await this.db
-      .delete(awards)
-      .where(or(eq(awards.userId, id), eq(awards.givenBy, id)))
-      .run();
-
-    await this.db.delete(qrScanLog).where(eq(qrScanLog.scannedBy, id)).run();
-
-    await this.db.delete(users).where(eq(users.id, id)).run();
+    await getLibsqlClient().batch(batchStmts, 'write');
 
     // Sync deletion with Supabase
     if (supabase) {
@@ -228,7 +241,7 @@ export class AdminService {
     return true;
   }
 
-  private async getUserById(id: string): Promise<User | null> {
+  async getUserById(id: string): Promise<User | null> {
     const row = await this.db
       .select({ user: users, profile: delegateProfiles })
       .from(users)

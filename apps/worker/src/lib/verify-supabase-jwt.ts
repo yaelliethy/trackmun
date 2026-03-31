@@ -123,10 +123,12 @@ export async function verifySupabaseJwt(
     if (p) return p;
   }
 
-  // Unknown or missing alg header: try both (covers edge cases)
-  const hs = await verifyHs256(token, jwtSecret);
+  // Unknown or missing alg header: try HS256 and JWKS in parallel (same wall time as slower branch only)
+  const [hs, es] = await Promise.all([
+    verifyHs256(token, jwtSecret),
+    verifyEs256Jwks(token, supabaseUrl),
+  ]);
   if (hs) return hs;
-  const es = await verifyEs256Jwks(token, supabaseUrl);
   if (es) return es;
 
   console.error('Supabase JWT verification failed (tried HS256 and JWKS)');

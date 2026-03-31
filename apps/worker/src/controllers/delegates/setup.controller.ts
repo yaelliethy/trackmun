@@ -107,6 +107,20 @@ export class DelegateSetupController {
         emailVerified: true
       }).run();
 
+      try {
+        await supabase.syncTrackmunJwtMetadata(
+          user.id,
+          {
+            role: 'delegate',
+            registrationStatus: 'approved',
+            council: null,
+          },
+          { user_metadata: { name: this.DEFAULT_NAME } }
+        );
+      } catch (e) {
+        console.error('[DelegateSetupController] syncTrackmunJwtMetadata failed:', e);
+      }
+
       // 3. Create delegate profile with country
       await service.createDelegateProfile(user.id, this.DEFAULT_COUNTRY);
       console.log('[DelegateSetupController] Delegate profile created successfully.');

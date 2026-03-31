@@ -7,8 +7,10 @@ export class AttendanceService {
   constructor(private db: DbType) {}
 
   async listDays(): Promise<ConferenceDay[]> {
-    const days = await this.db.select().from(conferenceDays).all();
-    const periods = await this.db.select().from(attendancePeriods).all();
+    const [days, periods] = await Promise.all([
+      this.db.select().from(conferenceDays).all(),
+      this.db.select().from(attendancePeriods).all(),
+    ]);
 
     return days.map(d => ({
       id: d.id,

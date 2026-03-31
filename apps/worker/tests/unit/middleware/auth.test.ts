@@ -175,9 +175,10 @@ describe('withAuth', () => {
     expect(c.vars.get('user')).toMatchObject({ id: 'user-sb' });
   });
 
-  it('returns 401 when Supabase verifies but user is not in D1', async () => {
+  it('returns 401 when Supabase verifies but user is not in Turso and claims are incomplete', async () => {
     vi.spyOn(jwtLib, 'verifySupabaseJwt').mockResolvedValueOnce({
       sub: 'ghost',
+      email: 'ghost@example.com',
     });
 
     const selectChain = {
@@ -189,7 +190,7 @@ describe('withAuth', () => {
       select: vi.fn(() => selectChain),
     } as never);
 
-    const token = makeThreePartToken({ sub: 'ghost' });
+    const token = makeThreePartToken({ sub: 'ghost', email: 'ghost@example.com' });
     const c = createMockContext(`Bearer ${token}`, {
       IMPERSONATION_SECRET: impersonationSecret,
       SUPABASE_JWT_SECRET: supabaseJwtSecret,
@@ -199,8 +200,78 @@ describe('withAuth', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(c.json).toHaveBeenCalledWith(
-      expect.objectContaining({ code: 'UNAUTHORIZED' }),
+      expect.objectContaining({ code: 'USER_NOT_IN_DATABASE' }),
       401
     );
+  });
+
+  it('uses JWT app_metadata.trackmun without Turso when claims are valid', async () => {
+    vi.spyOn(jwtLib, 'verifySupabaseJwt').mockResolvedValueOnce({
+      sub: 'user-jwt',
+      email: 'jwt@example.com',
+      user_metadata: { name: 'JWT User' },
+      app_metadata: {
+        trackmun: {
+          role: 'delegate',
+          registrationStatus: 'approved',
+        },
+      },
+      iat: Math.floor(Date.now() / 1000),
+    });
+
+    const token = makeThreePartToken({ sub: 'user-jwt' });
+    const c = createMockContext(`Bearer ${token}`, {
+      IMPERSONATION_SECRET: impersonationSecret,
+      SUPABASE_JWT_SECRET: supabaseJwtSecret,
+    });
+    const next = vi.fn().mockResolvedValue(undefined);
+    await withAuth(c as never, next);
+
+    expect(getDb).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalled();
+    expect(c.vars.get('user')).toMatchObject({
+      id: 'user-jwt',
+      email: 'jwt@example.com',
+      role: 'delegate',
+      registrationStatus: 'approved',
+    });
+  });
+
+  it('falls back to Turso when app_metadata.trackmun is missing', async () => {
+    vi.spyOn(jwtLib, 'verifySupabaseJwt').mockResolvedValueOnce({
+      sub: 'user-db',
+      email: 'db@example.com',
+      user_metadata: { name: 'DB User' },
+    });
+
+    const userRow = {
+      id: 'user-db',
+      email: 'db@example.com',
+      name: 'DB User',
+      role: 'oc',
+      registrationStatus: 'approved',
+      council: null,
+      createdAt: 3,
+    };
+    const selectChain = {
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      get: vi.fn().mockResolvedValue(userRow),
+    };
+    getDb.mockReturnValue({
+      select: vi.fn(() => selectChain),
+    } as never);
+
+    const token = makeThreePartToken({ sub: 'user-db', email: 'db@example.com' });
+    const c = createMockContext(`Bearer ${token}`, {
+      IMPERSONATION_SECRET: impersonationSecret,
+      SUPABASE_JWT_SECRET: supabaseJwtSecret,
+    });
+    const next = vi.fn().mockResolvedValue(undefined);
+    await withAuth(c as never, next);
+
+    expect(getDb).toHaveBeenCalled();
+    expect(next).toHaveBeenCalled();
+    expect(c.vars.get('user')).toMatchObject({ id: 'user-db', role: 'oc' });
   });
 });

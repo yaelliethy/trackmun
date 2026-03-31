@@ -97,6 +97,20 @@ export class AdminSetupController {
       await service.seedAdmin(user.id, email, name);
       console.log('[AdminSetupController] Turso seed finished.');
 
+      try {
+        await supabase.syncTrackmunJwtMetadata(
+          user.id,
+          {
+            role: 'admin',
+            registrationStatus: 'approved',
+            council: null,
+          },
+          { user_metadata: { name } }
+        );
+      } catch (e) {
+        console.error('[AdminSetupController] syncTrackmunJwtMetadata failed:', e);
+      }
+
       return c.json({
         success: true,
         data: {
