@@ -1,4 +1,5 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
+import { handle } from 'hono/cloudflare-pages';
 import { cors } from 'hono/cors';
 import { swaggerUI } from '@hono/swagger-ui';
 import { Bindings } from './types/env';
@@ -20,7 +21,7 @@ import councilsRoutes from './routes/admin/councils';
 import publicRegistrationRoutes from './routes/registration';
 import uploadRoutes from './routes/upload';
 
-const app = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
+const app = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>().basePath('/functions/api');
 
 // CORS middleware for all routes - MUST be first to handle preflights even on errors
 app.use('*', async (c, next) => {
@@ -42,7 +43,7 @@ app.use('*', async (c, next) => {
       if (allowedOrigins.includes(origin) || (origin && (origin.endsWith('.pages.dev') || origin.endsWith('.workers.dev')))) {
         return origin;
       }
-      return allowedOrigins[0] || origin;
+      return allowedOrigins[0] || origin || '*';
     },
     allowHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin'],
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -128,7 +129,7 @@ app.doc('/doc', {
 });
 
 // Swagger UI at /docs
-app.get('/docs', swaggerUI({ url: '/doc' }));
+app.get('/docs', swaggerUI({ url: '/functions/api/doc' }));
 
 // Base route
 app.openapi(
@@ -175,4 +176,4 @@ app.route('/registration', publicRegistrationRoutes);
 app.route('/upload', uploadRoutes);
 app.route('/oc', ocMemberRoutes);
 
-export default app;
+export const onRequest = handle(app);

@@ -8,9 +8,7 @@
     "type-check": "pnpm -r type-check",
     "db:reset": "sh scripts/clear-sqld.sh && bash scripts/clear-supabase-auth.sh && sh scripts/apply-turso-migrations.sh",
     "db:push:retry": "sh scripts/db-push-with-retry.sh",
-    "deploy:worker": "pnpm --filter @trackmun/worker run deploy",
-    "deploy:web": "pnpm --filter @trackmun/web run deploy",
-    "deploy:all": "pnpm deploy:worker && pnpm deploy:web"
+    "deploy": "pnpm --filter @trackmun/web run deploy"
   },
   "devDependencies": {
     "eslint": "^8.57.1",

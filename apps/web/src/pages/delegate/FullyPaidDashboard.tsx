@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useAuthStore } from "../../hooks/useAuthStore"
-import { LogOut, QrCode, Calendar, Award, User, Ticket, CheckCircle2, XCircle } from "lucide-react"
+import { LogOut, QrCode, Calendar, Award, User, Ticket, CheckCircle2, XCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useNavigate } from "react-router-dom"
 import { api } from "../../services/api"
@@ -10,9 +10,12 @@ import brand from "@/config/brand"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import QRCode from "react-qr-code"
-import { useQuery } from "@tanstack/react-query"
+import QRCodeComp from "react-qr-code"
+import { useQuery, useQueryClient, useIsFetching } from "@tanstack/react-query"
 import { useTheme } from "next-themes"
+
+// Safe export handling for react-qr-code in various build environments
+const QRCode = (QRCodeComp as any).default || (QRCodeComp as any)
 
 interface DelegateProfile {
   userId: string
@@ -40,6 +43,7 @@ interface AttendanceRecord {
 interface Benefit {
   id: string
   benefitType: string
+  name: string
   redeemedAt: number
 }
 
@@ -68,6 +72,8 @@ export const FullyPaidDashboard: React.FC = () => {
   /** Modules only; background is transparent so the card shows through. */
   const qrFg = isDarkQr ? "#ffffff" : "#000000"
   const qrBg = "#00000000"
+  const queryClient = useQueryClient()
+  const isFetching = useIsFetching()
 
   const { data: profile } = useQuery({
     queryKey: ["delegate-profile"],
@@ -157,6 +163,15 @@ export const FullyPaidDashboard: React.FC = () => {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted-foreground hover:text-foreground"
+              onClick={() => queryClient.refetchQueries()}
+              title="Refresh dashboard data"
+            >
+              <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
+            </Button>
             <ModeToggle />
             <Button variant="ghost" size="sm" onClick={handleLogout} className="h-8 gap-1.5 text-xs">
               <LogOut className="h-3.5 w-3.5" />
@@ -237,6 +252,12 @@ export const FullyPaidDashboard: React.FC = () => {
                   <span className="text-muted-foreground">Email</span>
                   <span className="font-medium">{profile?.email || user?.email}</span>
                 </div>
+                {profile?.council && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Council</span>
+                    <span className="font-medium">{profile.council}</span>
+                  </div>
+                )}
                 {profile?.country && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Country</span>
@@ -307,7 +328,7 @@ export const FullyPaidDashboard: React.FC = () => {
                   <div className="space-y-2">
                     {benefits.map((benefit) => (
                       <div key={benefit.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
-                        <span className="text-foreground">{benefit.benefitType}</span>
+                        <span className="text-foreground">{benefit.name}</span>
                         <span className="text-muted-foreground text-xs">
                           {new Date(benefit.redeemedAt * 1000).toLocaleDateString()}
                         </span>

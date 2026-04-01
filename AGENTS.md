@@ -16,26 +16,27 @@ If you are an AI agent working in this repository: **read this file fully before
 
 ## 2. Architecture Overview
 
-This is a full-stack Model United Nations (MUN) platform built on Cloudflare Workers with Turso (libSQL) database.
+This is a full-stack Model United Nations (MUN) platform built on Cloudflare Pages Functions with Turso (libSQL) database.
 
 ### High-Level Structure
 
-```
+```text
 /
 ├── apps/
-│ ├── web/ # React + shadcn/ui application (frontend)
-│ └── worker/ # Cloudflare Workers (API backend)
-├── packages/
-│ └── shared/ # Shared TypeScript types and Zod schemas
-└── apps/worker/migrations/ # Turso SQL migrations
+│   └── web/            # Full-stack Cloudflare Pages application
+│       ├── src/        # React + shadcn/ui application (frontend)
+│       ├── functions/  # Cloudflare Pages Functions (API backend)
+│       └── migrations/ # Turso SQL migrations
+└── packages/
+    └── shared/         # Shared TypeScript types and Zod schemas
 ```
 
 ### Core Principles
 
-- **Frontend** is a React SPA served as a static site. It communicates exclusively with the Workers API. It has no direct database or storage access.
-- **Backend** is a collection of Cloudflare Workers. Each Worker is stateless and handles a bounded domain (auth, QR, press, delegates, etc.). Workers respond to HTTP requests and return JSON.
-- **Database** is **Turso (libSQL)**. Accessed only from Workers via Drizzle ORM, never from the frontend.
-- **Storage** is Cloudflare R2 for media uploads. Files are uploaded directly from the client using presigned URLs. Workers generate presigned URLs but do not proxy file content.
+- **Frontend** is a React SPA served by Cloudflare Pages. It communicates exclusively with the Pages Functions API. It has no direct database or storage access.
+- **Backend** is built on Cloudflare Pages Functions (`functions/api/[[path]].ts`). It is stateless and handles bounded domains (auth, QR, press, delegates, etc.). Functions respond to HTTP requests and return JSON.
+- **Database** is **Turso (libSQL)**. Accessed only from Functions via Drizzle ORM, never from the frontend.
+- **Storage** is Cloudflare R2 for media uploads. Files are uploaded directly from the client using presigned URLs. Functions generate presigned URLs but do not proxy file content.
 - **API-driven design**: All data flows through well-defined REST endpoints. The frontend is a consumer, not a peer.
 
 ### Domain Services
@@ -44,9 +45,9 @@ The backend is organized into focused service modules:
 
 | Service | Responsibility |
 |-------------|-----------------------------------------------------|
-| `auth` | **Better Auth** (email/password, sessions, JWT plugin); roles from Turso `users`; admin **impersonation** (HMAC JWT); email verification |
-| `delegates` | Registration with pending approval, profile management, QR code issuance, committee choices |
-| `qr` | QR code signing, validation, replay protection |
+| `auth` | Supabase Auth (JWT verification); roles from Turso `users`; admin **impersonation** (HMAC JWT); identity management |
+| `delegates` | Registration with pending approval, profile management, committee choices |
+| `qr` | Static QR code generation for physical badges, scanning validation |
 | `oc` | Attendance scanning, benefit tracking |
 | `chairs` | Country assignment, award management |
 | `admin` | Admin/setup routes, user management, registration approval, platform control |
@@ -62,7 +63,7 @@ Agents must respect this service boundary. Do not create cross-service dependenc
 
 ### Language
 
-- **TypeScript is mandatory everywhere** — frontend, Workers, scripts, and utilities.
+- **TypeScript is mandatory everywhere** — frontend, Functions, scripts, and utilities.
 - No plain JavaScript files. No `any` types unless unavoidable and explicitly commented.
 - Enable strict mode in `tsconfig.json`. Do not disable strict checks.
 
@@ -131,56 +132,56 @@ The platform uses a strict two-color primary palette:
 
 ### File Organization
 
-```
+```text
 apps/web/src/
 ├── components/ # Reusable UI components
-│ ├── ui/ # shadcn/ui base components
-│ ├── common/ # Shared elements
-│ ├── delegates/
-│ ├── press/
-│ └── ...
-├── pages/ # Route-level page components
-├── hooks/ # Custom React hooks
-├── services/ # API client functions (typed fetch wrappers)
-├── types/ # Shared TypeScript types
-└── utils/ # Pure utility functions
+│   ├── ui/       # shadcn/ui base components
+│   ├── common/   # Shared elements
+│   ├── delegates/
+│   ├── press/
+│   └── ...
+├── pages/      # Route-level page components
+├── hooks/      # Custom React hooks
+├── services/   # API client functions (typed fetch wrappers)
+├── types/      # Shared TypeScript types
+└── utils/      # Pure utility functions
 ```
 
 ---
 
-## 5. Backend (Workers) Guidelines
+## 5. Backend (Pages Functions) Guidelines
 
 ### Handler Design
 
-- Each Worker handles a **single domain** (e.g., `delegates-worker`, `press-worker`).
+- The backend is structured as a single Hono app running on Cloudflare Pages Functions.
 - Follow a strict **MVC (Model-View-Controller)** pattern for backend logic:
- - **Routes**: Define endpoints and OpenAPI specifications using **Hono Zod OpenAPI** (`@hono/zod-openapi`) (thin layer).
- - **Controllers**: Handle request/response orchestration (parse input → call service → return JSON).
- - **Services**: Contain business logic and database operations (stateless).
+  - **Routes**: Define endpoints and OpenAPI specifications using **Hono Zod OpenAPI** (`@hono/zod-openapi`) (thin layer).
+  - **Controllers**: Handle request/response orchestration (parse input → call service → return JSON).
+  - **Services**: Contain business logic and database operations (stateless).
 - Route handlers must be **small and focused**. Extract business logic into service functions; keep handlers as thin orchestrators.
 - A handler's responsibility: parse the request → validate → authorize → call service → return response.
 
-### File Organization (Worker)
+### File Organization (Functions)
 
+```text
+apps/web/functions/api/
+├── [[path]].ts       # Entry point for all /api/* routes (Hono app)
+├── controllers/      # Domain-specific controllers
+├── services/         # Business logic & DB operations
+├── routes/           # OpenAPI route definitions
+├── middleware/       # Custom Hono middleware (auth, rbac)
+├── lib/              # Shared helpers (e.g. JWT verification)
+├── db/               # Drizzle schema & Turso client
+└── types/            # Types (env bindings, etc.)
 ```
-apps/worker/src/
-├── index.ts # Entry point & global middleware
-├── controllers/ # Domain-specific controllers
-├── services/ # Business logic & DB operations
-├── routes/ # OpenAPI route definitions
-├── middleware/ # Custom Hono middleware (auth, rbac)
-├── lib/ # Shared helpers (e.g. better-auth factory, JWT verification)
-├── db/ # Drizzle schema & D1 client (initializeDb, getDb)
-└── types/ # Worker-specific types (env bindings, etc.)
-```
 
-SQL migrations live in **`apps/worker/migrations/`** (versioned files; not under `src/`).
+SQL migrations live in **`apps/web/migrations/`** (versioned files; not under `functions/`).
 
-### Unit tests (Worker)
+### Unit tests (Functions)
 
-- Worker unit tests live in **`apps/worker/tests/unit/`**, grouped by area (`auth/`, `lib/`, `middleware/`, `services/`, `app/`).
-- Run them with **`pnpm --filter @trackmun/worker test`** (Vitest with **`@cloudflare/vitest-pool-workers`**). Vitest is pinned to a version compatible with that pool package (see `apps/worker/package.json`).
-- Add tests for new business logic and security-sensitive helpers (auth, JWT verification, middleware) in that tree. Import production modules via the **`#src`** alias (see `apps/worker/vitest.config.ts` and `apps/worker/tsconfig.json`).
+- Functions unit tests live in **`apps/web/functions/tests/unit/`**, grouped by area (`auth/`, `lib/`, `middleware/`, `services/`, `app/`).
+- Run them with Vitest using the configured runner.
+- Add tests for new business logic and security-sensitive helpers (auth, JWT verification, middleware) in that tree.
 
 ---
 
@@ -194,10 +195,10 @@ Deployers edit this file to change the app's visual identity:
 
 ```typescript
 export default {
- appName: 'TrackMUN',
- logoPath: '/logo.svg', // path relative to public/
- primary: '#04316c', // Hex color for primary brand color
- primaryForeground: '#ffffff', // Hex color for text on primary background
+  appName: 'TrackMUN',
+  logoPath: '/logo.svg', // path relative to public/
+  primary: '#04316c', // Hex color for primary brand color
+  primaryForeground: '#ffffff', // Hex color for text on primary background
 };
 ```
 
@@ -241,21 +242,22 @@ To ensure TrackMUN remains a premium, professional platform and avoids "AI slop"
 - **Validate all inputs.** Never trust client-supplied data.
 - Validate request bodies, query parameters, path parameters, and headers.
 - Return `400 Bad Request` with a descriptive error message for invalid inputs.
-- Use a consistent validation approach (e.g., Zod schemas) across all Workers.
+- Use a consistent validation approach (e.g., Zod schemas) across all endpoints.
 
 ### Authorization
 
 - Every protected route must check the caller's role **explicitly**.
-- **Identity** is managed by **Supabase Auth**: the client sends **`Authorization: Bearer <access_token>`** on API calls. The Worker verifies the access JWT (`apps/worker/src/lib/verify-supabase-jwt.ts`).
-- **RBAC (role and registration status)** for normal access tokens: read from **`app_metadata.trackmun`** on the **verified** JWT payload (`role`, `registrationStatus`, optional `council`), validated in `apps/worker/src/lib/jwt-user-claims.ts`. This avoids a per-request Turso read on the hot path. **Turso `users` remains the source of truth**; the Worker calls **`SupabaseAdmin.syncTrackmunJwtMetadata`** after every Turso write that changes role, registration status, council, or relevant profile fields so the next issued access token matches the database.
+- **Identity** is managed by **Supabase Auth**: the client sends **`Authorization: Bearer <access_token>`** on API calls. The Backend verifies the access JWT (`apps/web/functions/api/lib/verify-supabase-jwt.ts`).
+- **RBAC (role and registration status)** for normal access tokens: read from **`app_metadata.trackmun`** on the **verified** JWT payload (`role`, `registrationStatus`, optional `council`), validated in `apps/web/functions/api/lib/jwt-user-claims.ts`. This avoids a per-request Turso read on the hot path. **Turso `users` remains the source of truth**; the Backend calls **`SupabaseAdmin.syncTrackmunJwtMetadata`** after every Turso write that changes role, registration status, council, or relevant profile fields so the next issued access token matches the database.
 - **Fallback**: if `app_metadata.trackmun` is missing or invalid (legacy sessions), **`withAuth`** loads the user from Turso by `sub` once per request.
 - **Staleness**: JWT claims are current until the access token expires or is refreshed. Prefer a **short access-token TTL** in Supabase so admin approval or role changes propagate quickly. After admin actions, the SPA should **refresh the session** so the client receives a new JWT.
 - **Registration Status**: New delegates have `registration_status = 'pending'`. They must be approved by admin before accessing full features.
 - Role hierarchy: `admin > chair > oc > delegate`
 - **Admin Provisioning**: Admin users can provision new internal accounts (`oc` and `chair`) via the `AdminController.createUser` method.
 - **Impersonation**: admins receive a short-lived **HMAC-SHA256** JWT (`typ: 'impersonation'`, secret `IMPERSONATION_SECRET`) only for targets whose role is **`oc` or `chair`**. The acting user is always loaded from **Turso** by `actingAs`. Log events in **`impersonation_log`** via `AuthService.logImpersonation`.
-- Required bindings / secrets are declared on **`Bindings`** in `apps/worker/src/types/env.ts` (e.g. `SUPABASE_JWT_SECRET`, `SUPABASE_URL`, `IMPERSONATION_SECRET`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `MEDIA`). Optional: `ENVIRONMENT`.
+- Required bindings / secrets are declared on **`Bindings`** in `apps/web/functions/api/types/env.ts` (e.g. `SUPABASE_JWT_SECRET`, `SUPABASE_URL`, `IMPERSONATION_SECRET`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `MEDIA`). Optional: `ENVIRONMENT`.
 - Return `401 Unauthorized` for missing/invalid tokens. Return `403 Forbidden` for insufficient permissions or pending/rejected registration status.
+- **Unified Login**: Use the unified `/login` route for all users, including admins. Do not create separate login routes for distinct roles.
 
 ### Middleware Patterns
 
@@ -330,7 +332,7 @@ CREATE TABLE delegate_profiles (
 
 ### Migrations
 
-- All schema changes must be written as versioned migration files in `apps/worker/migrations/`.
+- All schema changes must be written as versioned migration files in `apps/web/migrations/`.
 - Migration files are append-only. Never modify an already-applied migration.
 - Migration naming: `0001_create_users.sql`, `0002_add_delegate_profiles.sql`.
 - Apply migrations: `pnpm db:generate` then `pnpm db:push` (local) or manual apply (production).
@@ -339,33 +341,32 @@ CREATE TABLE delegate_profiles (
 
 ## Drizzle ORM
 
-All database access in the Worker uses **Drizzle ORM** for type-safe, composable queries with Turso (libSQL).
+All database access in the backend uses **Drizzle ORM** for type-safe, composable queries with Turso (libSQL).
 
 ### Installation
 
-Dependencies are declared in `apps/worker/package.json`:
+Dependencies are declared in `apps/web/package.json`:
 - `drizzle-orm` — ORM runtime
 - `@libsql/client` — Turso client driver
 - `drizzle-kit` — CLI for migrations and schema management
 
 ### File Structure
 
-```
-apps/worker/src/
+```text
+apps/web/functions/api/
 ├── db/
-│ ├── schema.ts # Table definitions and relations
-│ └── client.ts # Database client initialization (Turso/libsql)
+│   ├── schema.ts # Table definitions and relations
+│   └── client.ts # Database client initialization (Turso/libsql)
 ├── lib/
-│ ├── auth.ts # better-auth instance factory
-│ └── verify-better-auth-jwt.ts # Access JWT verification
+│   └── verify-supabase-jwt.ts # Access JWT verification
 ├── middleware/
-│ ├── auth.ts # withAuth
-│ └── rbac.ts # requireRole
-├── routes/ # OpenAPI routers
-├── controllers/ # Thin handlers
+│   ├── auth.ts # withAuth
+│   └── rbac.ts # requireRole
+├── routes/       # OpenAPI routers
+├── controllers/  # Thin handlers
 └── services/
- ├── admin/ # Admin services
- └── auth/ # Auth services
+    ├── admin/    # Admin services
+    └── auth/     # Auth services
 ```
 
 ### Usage Pattern
@@ -377,9 +378,9 @@ import { getDb } from '../../db/client';
 import { users, eq } from '../../db/schema';
 
 async function getUserById(id: string) {
- const db = getDb();
- const user = await db.select().from(users).where(eq(users.id, id)).get();
- return user;
+  const db = getDb();
+  const user = await db.select().from(users).where(eq(users.id, id)).get();
+  return user;
 }
 ```
 
@@ -393,12 +394,12 @@ const user = await db.select().from(users).where(eq(users.id, id)).get();
 **SELECT (multiple with pagination):**
 ```typescript
 const results = await db
- .select()
- .from(users)
- .where(eq(users.registrationStatus, 'pending'))
- .limit(20)
- .offset((page - 1) * 20)
- .all();
+  .select()
+  .from(users)
+  .where(eq(users.registrationStatus, 'pending'))
+  .limit(20)
+  .offset((page - 1) * 20)
+  .all();
 ```
 
 **COUNT:**
@@ -409,13 +410,13 @@ const result = await db.select({ count: count() }).from(users).get();
 **INSERT:**
 ```typescript
 await db.insert(users).values({
- id: 'user-123',
- email: 'user@example.com',
- firstName: 'John',
- lastName: 'Doe',
- name: 'John Doe',
- role: 'delegate',
- registrationStatus: 'pending',
+  id: 'user-123',
+  email: 'user@example.com',
+  firstName: 'John',
+  lastName: 'Doe',
+  name: 'John Doe',
+  role: 'delegate',
+  registrationStatus: 'pending',
 }).run();
 ```
 
@@ -455,14 +456,14 @@ turso db shell <database-name> < migrations/0001_*.sql
 
 ## 7. R2 Upload Guidelines
 
-- **Never proxy file uploads through Workers.** Workers have memory and CPU limits that make them unsuitable for large binary streams.
-- The upload flow is always: client requests presigned URL from Worker → Worker validates request and generates presigned URL → client uploads directly to R2 → client notifies Worker of completion → Worker records the media reference.
+- **Never proxy file uploads through Pages Functions.** Pages Functions have memory and CPU limits that make them unsuitable for large binary streams.
+- The upload flow is always: client requests presigned URL from API → API validates request and generates presigned URL → client uploads directly to R2 → client notifies API of completion → API records the media reference.
 - Presigned URLs must have a **short expiration** (maximum 15 minutes).
-- Workers must validate the following before generating a presigned URL:
- - User is authenticated and authorized to upload
- - File type is in the allowed list (e.g., `image/jpeg`, `image/png`, `image/webp`, `video/mp4`)
- - Declared file size does not exceed the configured maximum
-- After the client completes the upload, the Worker must verify the object exists in R2 before persisting the reference to D1.
+- Backends must validate the following before generating a presigned URL:
+  - User is authenticated and authorized to upload
+  - File type is in the allowed list (e.g., `image/jpeg`, `image/png`, `image/webp`, `video/mp4`)
+  - Declared file size does not exceed the configured maximum
+- After the client completes the upload, the backend must verify the object exists in R2 before persisting the reference to the database.
 - R2 object keys must be namespaced by context: `press/{postId}/{filename}`, `delegates/avatars/{delegateId}/{filename}`.
 
 ---
@@ -481,7 +482,7 @@ turso db shell <database-name> < migrations/0001_*.sql
 
 ### General Security
 
-- Never expose signing keys, **Better Auth** / **impersonation** secrets, or R2 credentials in source code, logs, or responses.
+- Never expose signing keys, **HMAC** secrets, or R2 credentials in source code, logs, or responses.
 - Do not log QR payloads or tokens in plaintext.
 - Rate-limit scanning endpoints to prevent brute-force attempts.
 
@@ -507,7 +508,7 @@ turso db shell <database-name> < migrations/0001_*.sql
 
 - Index `post_likes` on `(post_id, user_id)` for fast like lookups and uniqueness enforcement.
 - Index `press_posts` on `created_at DESC` for feed ordering.
-- Cache public feed responses at the Worker level where appropriate (consider Cloudflare Cache API).
+- Cache public feed responses at the CDN level where appropriate (consider Cloudflare Cache API).
 
 ---
 
@@ -517,8 +518,8 @@ turso db shell <database-name> < migrations/0001_*.sql
 
 - Use the **Cloudflare Cache API** for publicly cacheable responses (e.g., public press feed, committee lists).
 - Set appropriate `Cache-Control` headers on all responses.
-- Use D1's prepared statements; avoid re-parsing the same query structure on every request.
-- Keep Worker cold start time minimal: avoid heavy imports and unnecessary initialization at the module level.
+- Use prepared statements (if natively supported) or Drizzle query builders to avoid re-parsing the same query structure on every request.
+- Keep Function cold start time minimal: avoid heavy imports and unnecessary initialization at the module level.
 
 ### Frontend
 
@@ -537,7 +538,7 @@ turso db shell <database-name> < migrations/0001_*.sql
 - All **admin actions**: impersonation events, forced role changes, data deletions.
 - All **authentication events**: login, logout, token refresh failures.
 - All **QR scan events**: success, failure reason, delegate ID, timestamp.
-- Unhandled errors and unexpected states in Workers.
+- Unhandled errors and unexpected states in the API.
 
 ### What Not to Log
 
@@ -547,18 +548,18 @@ turso db shell <database-name> < migrations/0001_*.sql
 
 ### Format
 
-- Use structured logging (JSON) in Workers for compatibility with Cloudflare's log tooling.
+- Use structured logging (JSON) in the backend for compatibility with Cloudflare's log tooling.
 - Include: `timestamp`, `level` (`info`/`warn`/`error`), `service`, `action`, `actorId`, and a `message`.
 
 ```json
 {
- "timestamp": "2025-01-15T14:32:00Z",
- "level": "info",
- "service": "admin",
- "action": "impersonate",
- "actorId": "admin-001",
- "targetId": "delegate-042",
- "message": "Admin initiated impersonation"
+  "timestamp": "2025-01-15T14:32:00Z",
+  "level": "info",
+  "service": "admin",
+  "action": "impersonate",
+  "actorId": "admin-001",
+  "targetId": "delegate-042",
+  "message": "Admin initiated impersonation"
 }
 ```
 
@@ -571,7 +572,7 @@ These patterns are explicitly prohibited. If you encounter them in existing code
 | Anti-Pattern | Why It's Prohibited |
 |---|---|
 | **Monolithic handler functions** | Hard to test, review, and maintain. Split into service + handler. |
-| **Proxying file uploads through Workers** | Exceeds memory limits, causes timeouts, adds unnecessary cost. |
+| **Proxying file uploads through Pages Functions** | Exceeds memory limits, causes timeouts, adds unnecessary cost. |
 | **Missing authorization checks** | Any endpoint without explicit role verification is a security vulnerability. |
 | **Hardcoded secrets or credentials** | Must use environment variables and Cloudflare secrets binding. |
 | **Unbounded database queries** | Will degrade under load. Always paginate. |
@@ -598,15 +599,15 @@ These patterns are explicitly prohibited. If you encounter them in existing code
 - **Prefer incremental changes.** A small, correct, reviewable change is better than a large refactor. Do not restructure unrelated code while fixing a bug.
 - **Do not introduce breaking changes** to existing API contracts without explicit instruction and a migration path defined.
 - **Follow existing patterns.** If the codebase uses a specific error handling pattern, validation approach, or folder structure — match it. Do not introduce a new pattern without discussion.
-- **Do not add dependencies** (npm packages, Worker bindings, etc.) without justification. Every dependency is a maintenance and security liability.
+- **Do not add dependencies** (npm packages, Cloudflare bindings, etc.) without justification. Every dependency is a maintenance and security liability.
 
 ### Code Quality Checklist
 
 Before submitting any change, verify:
 
 - [ ] TypeScript strict mode passes with no errors
-- [ ] **Unit tests are written for all new business logic and utility functions** (place Worker tests under `apps/worker/tests/unit/`, run `pnpm --filter @trackmun/worker test`)
-- [ ] All inputs to Workers are validated
+- [ ] **Unit tests are written for all new business logic and utility functions** (place function tests under `apps/web/functions/tests/unit/`)
+- [ ] All inputs to API endpoints are validated
 - [ ] Authorization is enforced on every protected route
 - [ ] New database queries are parameterized and paginated
 - [ ] No secrets or credentials are present in source code

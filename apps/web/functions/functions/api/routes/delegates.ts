@@ -3,7 +3,7 @@ import { Bindings } from '../types/env';
 import { AuthContext, withAuth } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
 import { getDb } from '../db/client';
-import { delegateProfiles, users, attendanceRecords, benefitRedemptions, awards } from '../db/schema';
+import { delegateProfiles, users, attendanceRecords, benefitRedemptions, awards, benefits as benefitsTable } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 const delegates = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>();
@@ -151,6 +151,7 @@ delegates.openapi(
               data: z.array(z.object({
                 id: z.string(),
                 benefitType: z.string(),
+                name: z.string(),
                 redeemedAt: z.number(),
               })),
             }),
@@ -165,20 +166,22 @@ delegates.openapi(
     const db = getDb();
     const user = c.get('user');
 
-    const benefits = await db
-      .select()
+    const result = await db
+      .select({
+        id: benefitRedemptions.id,
+        benefitType: benefitRedemptions.benefitType,
+        redeemedAt: benefitRedemptions.redeemedAt,
+        name: benefitsTable.name,
+      })
       .from(benefitRedemptions)
+      .innerJoin(benefitsTable, eq(benefitRedemptions.benefitType, benefitsTable.id))
       .where(eq(benefitRedemptions.userId, user.id))
       .orderBy(desc(benefitRedemptions.redeemedAt))
       .all();
 
     return c.json({
       success: true,
-      data: benefits.map((b) => ({
-        id: b.id,
-        benefitType: b.benefitType,
-        redeemedAt: b.redeemedAt,
-      })),
+      data: result,
     });
   }
 );

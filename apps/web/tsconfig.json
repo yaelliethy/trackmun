@@ -10,7 +10,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@trackmun/shared": ["../../packages/shared/src/index.ts"]
+      "@trackmun/shared": ["../../packages/shared/src/index.ts"],
+      "#src/*": ["functions/functions/api/*"]
     },
 
     /* Bundler mode */
@@ -21,7 +22,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client"],
+    "types": ["vite/client", "@cloudflare/workers-types"],
 
     /* Linting */
     "strict": true,
@@ -29,6 +30,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  "include": ["src", "functions"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

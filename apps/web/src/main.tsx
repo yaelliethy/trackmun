@@ -11,12 +11,13 @@ import { Toaster } from './components/ui/sonner';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Fresh for 60s — navigating to a route re-uses cached data within the
-      // window but won't fire a network request on every click.
+      // Refresh on every mount (URL change)
       staleTime: 0,
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
+      refetchOnMount: true,
+      refetchInterval: false,
       retry: 1,
     },
   },

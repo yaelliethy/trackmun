@@ -11,15 +11,25 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 
+import { Button } from "@/components/ui/button"
+import { RefreshCw } from "lucide-react"
+import { useQueryClient, useIsFetching } from "@tanstack/react-query"
+
 export const AdminLayout: React.FC = () => {
   const { user, setUser } = useAuthStore()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const isFetching = useIsFetching()
 
   const handleLogout = () => {
     localStorage.removeItem("auth_token")
     localStorage.removeItem("refresh_token")
     setUser(null)
     navigate("/login")
+  }
+
+  const handleRefresh = () => {
+    queryClient.refetchQueries()
   }
 
   return (
@@ -33,6 +43,15 @@ export const AdminLayout: React.FC = () => {
             <SidebarTrigger className="-ml-1 size-8" />
             <Separator orientation="vertical" className="mr-1 h-4 opacity-60" />
             <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground hover:text-foreground"
+                onClick={handleRefresh}
+                title="Refresh dashboard data"
+              >
+                <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
+              </Button>
               <ModeToggle />
             </div>
           </header>
