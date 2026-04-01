@@ -1,4 +1,32 @@
-import { jwtVerify, createRemoteJWKSet } from 'jose';
+/**
+ * Supabase JWT Verification with KV Caching for JWKS
+ *
+ * This implementation uses native Web Crypto (SubtleCrypto) to verify ES256 (P-256)
+ * tokens from Supabase, caching the public key in Cloudflare KV to avoid
+ * frequent network calls to the JWKS endpoint.
+ */
+
+export interface JWK {
+  kty: string;
+  ext?: boolean;
+  key_ops?: string[];
+  alg?: string;
+  kid?: string;
+  crv?: string;
+  x?: string;
+  y?: string;
+  use?: string;
+}
+
+export interface JWKS {
+  keys: JWK[];
+}
+
+function base64UrlDecode(str: string): Uint8Array {
+  const pad = str.length % 4 === 0 ? '' : '='.repeat(4 - (str.length % 4));
+  const b64 = str.replace(/-/g, '+').replace(/_/g, '/') + pad;
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+}
 
 function base64UrlToJson<T>(segment: string | undefined): T | null {
   if (!segment) return null;
@@ -16,121 +44,137 @@ export function decodeJwtPayloadJson(token: string): Record<string, unknown> | n
   return base64UrlToJson<Record<string, unknown>>(parts[1]);
 }
 
-function decodeJwtHeaderAlg(token: string): string | null {
+function decodeJwtHeader(token: string): { alg?: string; kid?: string } | null {
   const parts = token.split('.');
-  const header = base64UrlToJson<{ alg?: string }>(parts[0]);
-  return header?.alg ?? null;
-}
-
-function tryDecodeBase64Secret(secret: string): Uint8Array | null {
-  const trimmed = secret.trim();
-  if (!/^[A-Za-z0-9+/]+=*$/.test(trimmed) || trimmed.length < 32) {
-    return null;
-  }
-  try {
-    const normalized = trimmed.replace(/-/g, '+').replace(/_/g, '/');
-    const decoded = atob(normalized);
-    return decoded.length >= 16 ? Uint8Array.from(decoded, (c) => c.charCodeAt(0)) : null;
-  } catch {
-    return null;
-  }
-}
-
-async function verifyHs256(token: string, jwtSecret: string): Promise<Record<string, unknown> | null> {
-  if (!jwtSecret?.trim()) return null;
-
-  const trimmed = jwtSecret.trim();
-  const keys: Uint8Array[] = [new TextEncoder().encode(trimmed)];
-  const decoded = tryDecodeBase64Secret(trimmed);
-  if (decoded) {
-    const utf8 = keys[0];
-    let same = utf8.length === decoded.length;
-    if (same) {
-      for (let i = 0; i < utf8.length; i++) {
-        if (utf8[i] !== decoded[i]) {
-          same = false;
-          break;
-        }
-      }
-    }
-    if (!same) {
-      keys.push(decoded);
-    }
-  }
-
-  for (const key of keys) {
-    try {
-      const { payload } = await jwtVerify(token, key, {
-        algorithms: ['HS256'],
-      });
-      return payload as Record<string, unknown>;
-    } catch {
-      // try next key material
-    }
-  }
-  return null;
-}
-
-const jwksByBaseUrl = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
-
-function getRemoteJwkSet(supabaseUrl: string): ReturnType<typeof createRemoteJWKSet> | null {
-  const base = supabaseUrl.replace(/\/$/, '');
-  if (!base) return null;
-  let set = jwksByBaseUrl.get(base);
-  if (!set) {
-    set = createRemoteJWKSet(new URL(`${base}/auth/v1/.well-known/jwks.json`));
-    jwksByBaseUrl.set(base, set);
-  }
-  return set;
-}
-
-async function verifyEs256Jwks(
-  token: string,
-  supabaseUrl: string
-): Promise<Record<string, unknown> | null> {
-  const jwks = getRemoteJwkSet(supabaseUrl);
-  if (!jwks) return null;
-  try {
-    const { payload } = await jwtVerify(token, jwks);
-    return payload as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+  return base64UrlToJson<{ alg?: string; kid?: string }>(parts[0]);
 }
 
 /**
- * Verify Supabase access tokens.
- *
- * 1. **HS256** — legacy / symmetric JWT secret (Settings → API → JWT Secret).
- * 2. **ES256 (JWKS)** — newer Supabase projects; verified via `{SUPABASE_URL}/auth/v1/.well-known/jwks.json`.
- *
- * Both paths are tried so local (HS256) and hosted (often ES256) behave the same.
+ * Fetch and cache JWKS from Supabase
+ */
+async function getSupabasePublicKeys(
+  supabaseUrl: string,
+  kv: KVNamespace
+): Promise<Map<string, CryptoKey>> {
+  const cacheKey = `jwks:${supabaseUrl}`;
+  let jwks: JWKS | null = null;
+
+  // 1. Try KV cache
+  try {
+    const cached = await kv.get(cacheKey, 'json');
+    if (cached) {
+      jwks = cached as JWKS;
+    }
+  } catch (e) {
+    console.error('KV GET failed:', e);
+  }
+
+  if (!jwks) {
+    // 2. Fetch from Supabase
+    const url = `${supabaseUrl.replace(/\/$/, '')}/auth/v1/.well-known/jwks.json`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch JWKS from ${url}`);
+    }
+    jwks = (await response.json()) as JWKS;
+
+    // 3. Cache in KV for 1 hour
+    try {
+      await kv.put(cacheKey, JSON.stringify(jwks), { expirationTtl: 3600 });
+    } catch (e) {
+      console.error('KV PUT failed:', e);
+      // Non-fatal, just means no caching for this request
+    }
+  }
+
+  const keys = new Map<string, CryptoKey>();
+  for (const key of jwks.keys) {
+    if (key.kty === 'EC' && key.crv === 'P-256' && key.x && key.y && key.kid) {
+      const cryptoKey = await crypto.subtle.importKey(
+        'jwk',
+        key,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false,
+        ['verify']
+      );
+      keys.set(key.kid, cryptoKey);
+    }
+  }
+
+  return keys;
+}
+
+/**
+ * Verify a JWT using ECDSA ES256 (P-256)
  */
 export async function verifySupabaseJwt(
   token: string,
-  jwtSecret: string,
+  kv: KVNamespace,
   supabaseUrl: string
 ): Promise<Record<string, unknown> | null> {
-  const alg = decodeJwtHeaderAlg(token);
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
 
-  if (alg === 'HS256') {
-    const p = await verifyHs256(token, jwtSecret);
-    if (p) return p;
+  const header = decodeJwtHeader(token);
+  const alg = header?.alg;
+  console.log(`Verifying JWT with algorithm: ${alg}, kid: ${header?.kid}`);
+
+  if (!header || header.alg !== 'ES256' || !header.kid) {
+    // If not ES256, maybe it's HS256 (not supported here anymore for access tokens)
+    return null;
   }
 
-  if (alg === 'ES256' || alg === 'RS256') {
-    const p = await verifyEs256Jwks(token, supabaseUrl);
-    if (p) return p;
+  const startTime = performance.now();
+  try {
+    const publicKeys = await getSupabasePublicKeys(supabaseUrl, kv);
+    const publicKey = publicKeys.get(header.kid);
+
+    if (!publicKey) {
+      // Key ID not found, maybe JWKS is stale? Clear KV cache for next time
+      try {
+        await kv.delete(`jwks:${supabaseUrl}`);
+      } catch (e) {
+        console.error('KV DELETE failed:', e);
+      }
+      return null;
+    }
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode(`${parts[0]}.${parts[1]}`);
+    const signature = base64UrlDecode(parts[2]);
+
+    const isValid = await crypto.subtle.verify(
+      { name: 'ECDSA', hash: { name: 'SHA-256' } },
+      publicKey,
+      signature,
+      data
+    );
+
+    const duration = (performance.now() - startTime).toFixed(2);
+    console.log(`[Auth] JWT verified in ${duration}ms (alg: ${alg})`);
+
+    if (isValid) {
+      const payload = decodeJwtPayloadJson(token);
+      
+      // Check expiration
+      if (payload && typeof payload.exp === 'number') {
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp < now) return null;
+      }
+      
+      return payload;
+    }
+  } catch (err) {
+    console.error('JWT verification error:', err);
   }
 
-  // Unknown or missing alg header: try HS256 and JWKS in parallel (same wall time as slower branch only)
-  const [hs, es] = await Promise.all([
-    verifyHs256(token, jwtSecret),
-    verifyEs256Jwks(token, supabaseUrl),
-  ]);
-  if (hs) return hs;
-  if (es) return es;
-
-  console.error('Supabase JWT verification failed (tried HS256 and JWKS)');
   return null;
 }
+
+/** 
+ * Alias for getClaims to match user request pattern
+ */
+export const getClaims = async (token: string, kv: KVNamespace, url: string) => {
+  const payload = await verifySupabaseJwt(token, kv, url);
+  return { data: payload, error: payload ? null : new Error('Invalid or missing claims') };
+};

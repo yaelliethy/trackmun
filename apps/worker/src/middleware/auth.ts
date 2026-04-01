@@ -56,19 +56,44 @@ export const withAuth: MiddlewareHandler<{ Bindings: Bindings; Variables: AuthCo
         }
       }
     } else {
-      const accessPayload = await verifySupabaseJwt(
-        token,
-        c.env.SUPABASE_JWT_SECRET,
-        c.env.SUPABASE_URL
-      );
-      const sub = accessPayload?.sub;
+      const { getSupabase } = await import('../lib/supabase');
+      const supabase = getSupabase(c.env);
+      const { data: accessPayload, error: sbError } = await supabase.auth.getClaims(token);
+      if (sbError) {
+        console.error('getClaims error:', sbError);
+      }
+      
+      const sub = (accessPayload as any)?.sub;
       if (typeof sub === 'string') {
-        const fromClaims =
-          accessPayload && typeof accessPayload === 'object'
-            ? userFromAccessTokenPayload(accessPayload as Record<string, unknown>)
-            : null;
+        const fromClaims = userFromAccessTokenPayload(accessPayload as Record<string, unknown>);
 
-        const user = fromClaims ?? (await fetchUserFromD1(sub));
+        let user = fromClaims;
+        if (!user) {
+          // Log DB fallback
+          user = await fetchUserFromD1(sub);
+          
+          if (user) {
+            const hasTrackmun = !!(accessPayload as any)?.app_metadata?.trackmun;
+            if (!hasTrackmun) {
+              console.log(`[Auth] DB fallback for ${sub}. Reason: meta missing from JWT. Self-healing...`);
+              const { getSupabaseAdmin } = await import('../lib/supabase-admin');
+              const admin = getSupabaseAdmin(c.env);
+              try {
+                await admin.syncTrackmunJwtMetadata(sub, {
+                  role: user.role,
+                  registrationStatus: user.registrationStatus,
+                  council: user.council || null,
+                });
+                console.log(`[Auth] Metadata synced to Supabase for ${sub}. IMPORTANT: Client must refresh session to receive new JWT claims.`);
+              } catch (e) {
+                console.error(`[Auth] Failed to sync metadata for ${sub}:`, e);
+              }
+            } else {
+               console.log(`[Auth] DB fallback for ${sub}. Reason: JWT meta found but invalid for Zod schema.`);
+            }
+          }
+        }
+
         if (user) {
           c.set('user', user);
           c.set('isImpersonating', false);
@@ -110,7 +135,7 @@ const USER_CACHE_TTL_SECONDS = 300; // 5 minutes
 async function fetchUserFromD1(userId: string): Promise<User | null> {
   const cache = (caches as any).default;
   const cacheKey = `http://internal/user/${userId}`;
-  
+
   try {
     const cachedResponse = await cache.match(cacheKey);
     if (cachedResponse) {
@@ -127,7 +152,7 @@ async function fetchUserFromD1(userId: string): Promise<User | null> {
       console.warn(`fetchUserFromD1: User not found in Turso for ID: ${userId}`);
       return null;
     }
-    
+
     const mappedUser: User = {
       id: user.id,
       email: user.email,

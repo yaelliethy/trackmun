@@ -67,6 +67,7 @@ let initPromise: Promise<void> | null = null;
 
 app.use('*', async (c, next) => {
   if (!initPromise) {
+    const startTime = performance.now();
     initPromise = (async () => {
       // 1. Validate required bindings
       const requiredBindings = [
@@ -75,7 +76,6 @@ app.use('*', async (c, next) => {
         'SUPABASE_URL',
         'SUPABASE_ANON_KEY',
         'SUPABASE_SERVICE_ROLE_KEY',
-        'SUPABASE_JWT_SECRET',
         'IMPERSONATION_SECRET',
       ];
 
@@ -98,6 +98,9 @@ app.use('*', async (c, next) => {
         url: c.env.TURSO_DATABASE_URL,
         authToken: c.env.TURSO_AUTH_TOKEN,
       });
+
+      const duration = (performance.now() - startTime).toFixed(2);
+      console.log(`[Cold Start] App initialized in ${duration}ms`);
     })();
   }
 

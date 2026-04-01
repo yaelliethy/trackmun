@@ -7,11 +7,12 @@ export type Bindings = {
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
   R2_ENDPOINT: string;
+  // Cloudflare KV
+  JWKS_KV: KVNamespace;
   // Supabase
   SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
-  SUPABASE_JWT_SECRET: string;
   // Frontend
   FRONTEND_URL: string;
   // Impersonation

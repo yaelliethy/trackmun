@@ -62,8 +62,6 @@ export const OCAttendancePage: React.FC = () => {
 
   const handleScan = useCallback(
     (decodedText: string) => {
-      // Assuming decoded text is delegateId for now
-      // Later this will be a signed JWT/Token
       recordAttendance.mutate(decodedText)
     },
     [recordAttendance]

@@ -2,10 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { withAuth } from '#src/middleware/auth';
 import { AuthService } from '#src/services/auth/auth.service';
 import * as dbClient from '#src/db/client';
-import * as jwtLib from '#src/lib/verify-supabase-jwt';
+import * as supabaseLib from '#src/lib/supabase';
 
 vi.mock('#src/db/client', () => ({
   getDb: vi.fn(),
+}));
+
+vi.mock('#src/lib/supabase', () => ({
+  getSupabase: vi.fn(),
 }));
 
 function b64urlSegment(obj: object): string {
@@ -16,12 +20,12 @@ function b64urlSegment(obj: object): string {
 }
 
 function makeThreePartToken(payload: Record<string, unknown>): string {
-  return `${b64urlSegment({ alg: 'HS256', typ: 'JWT' })}.${b64urlSegment(payload)}.sig`;
+  return `${b64urlSegment({ alg: 'ES256', typ: 'JWT', kid: 'test-kid' })}.${b64urlSegment(payload)}.sig`;
 }
 
 function createMockContext(
   authHeader: string | undefined,
-  env: { IMPERSONATION_SECRET: string; SUPABASE_JWT_SECRET: string }
+  env: { IMPERSONATION_SECRET: string; JWKS_KV: any; SUPABASE_URL: string }
 ) {
   const vars = new Map<string, unknown>();
   return {
@@ -42,7 +46,8 @@ function createMockContext(
 
 describe('withAuth', () => {
   const impersonationSecret = 'impersonation-test-secret-32chars-min';
-  const supabaseJwtSecret = 'supabase-test-jwt-secret-32chars-min';
+  const supabaseUrl = 'https://example.supabase.co';
+  const mockKV = { get: vi.fn(), put: vi.fn(), delete: vi.fn() };
   const getDb = vi.mocked(dbClient.getDb);
 
   beforeEach(() => {
@@ -52,7 +57,8 @@ describe('withAuth', () => {
   it('returns 401 when Authorization header is missing', async () => {
     const c = createMockContext(undefined, {
       IMPERSONATION_SECRET: impersonationSecret,
-      SUPABASE_JWT_SECRET: supabaseJwtSecret,
+      JWKS_KV: mockKV,
+      SUPABASE_URL: supabaseUrl,
     });
     const next = vi.fn();
     await withAuth(c as never, next);
@@ -66,7 +72,8 @@ describe('withAuth', () => {
   it('returns 401 when Bearer format is invalid', async () => {
     const c = createMockContext('Basic xyz', {
       IMPERSONATION_SECRET: impersonationSecret,
-      SUPABASE_JWT_SECRET: supabaseJwtSecret,
+      JWKS_KV: mockKV,
+      SUPABASE_URL: supabaseUrl,
     });
     const next = vi.fn();
     await withAuth(c as never, next);
@@ -80,7 +87,8 @@ describe('withAuth', () => {
   it('returns 401 when token is not three segments', async () => {
     const c = createMockContext('Bearer not-a-jwt', {
       IMPERSONATION_SECRET: impersonationSecret,
-      SUPABASE_JWT_SECRET: supabaseJwtSecret,
+      JWKS_KV: mockKV,
+      SUPABASE_URL: supabaseUrl,
     });
     const next = vi.fn();
     await withAuth(c as never, next);
@@ -124,7 +132,8 @@ describe('withAuth', () => {
 
     const c = createMockContext(`Bearer ${token}`, {
       IMPERSONATION_SECRET: impersonationSecret,
-      SUPABASE_JWT_SECRET: supabaseJwtSecret,
+      JWKS_KV: mockKV,
+      SUPABASE_URL: supabaseUrl,
     });
     const next = vi.fn().mockResolvedValue(undefined);
     await withAuth(c as never, next);
@@ -140,9 +149,12 @@ describe('withAuth', () => {
   });
 
   it('accepts Supabase token when verify returns sub and user exists in D1', async () => {
-    vi.spyOn(jwtLib, 'verifySupabaseJwt').mockResolvedValueOnce({
-      sub: 'user-sb',
-    });
+    const mockSupabase = {
+      auth: {
+        getClaims: vi.fn().mockResolvedValue({ data: { sub: 'user-sb' }, error: null }),
+      },
+    };
+    vi.mocked(supabaseLib.getSupabase).mockReturnValue(mockSupabase as any);
 
     const userRow = {
       id: 'user-sb',
@@ -164,22 +176,25 @@ describe('withAuth', () => {
     const token = makeThreePartToken({ sub: 'user-sb' });
     const c = createMockContext(`Bearer ${token}`, {
       IMPERSONATION_SECRET: impersonationSecret,
-      SUPABASE_JWT_SECRET: supabaseJwtSecret,
+      JWKS_KV: mockKV,
+      SUPABASE_URL: supabaseUrl,
     });
     const next = vi.fn().mockResolvedValue(undefined);
     await withAuth(c as never, next);
 
-    expect(jwtLib.verifySupabaseJwt).toHaveBeenCalled();
+    expect(mockSupabase.auth.getClaims).toHaveBeenCalled();
     expect(next).toHaveBeenCalled();
     expect(c.vars.get('isImpersonating')).toBe(false);
     expect(c.vars.get('user')).toMatchObject({ id: 'user-sb' });
   });
 
   it('returns 401 when Supabase verifies but user is not in Turso and claims are incomplete', async () => {
-    vi.spyOn(jwtLib, 'verifySupabaseJwt').mockResolvedValueOnce({
-      sub: 'ghost',
-      email: 'ghost@example.com',
-    });
+    const mockSupabase = {
+      auth: {
+        getClaims: vi.fn().mockResolvedValue({ data: { sub: 'ghost', email: 'ghost@example.com' }, error: null }),
+      },
+    };
+    vi.mocked(supabaseLib.getSupabase).mockReturnValue(mockSupabase as any);
 
     const selectChain = {
       from: vi.fn().mockReturnThis(),
@@ -193,7 +208,8 @@ describe('withAuth', () => {
     const token = makeThreePartToken({ sub: 'ghost', email: 'ghost@example.com' });
     const c = createMockContext(`Bearer ${token}`, {
       IMPERSONATION_SECRET: impersonationSecret,
-      SUPABASE_JWT_SECRET: supabaseJwtSecret,
+      JWKS_KV: mockKV,
+      SUPABASE_URL: supabaseUrl,
     });
     const next = vi.fn();
     await withAuth(c as never, next);
@@ -206,23 +222,32 @@ describe('withAuth', () => {
   });
 
   it('uses JWT app_metadata.trackmun without Turso when claims are valid', async () => {
-    vi.spyOn(jwtLib, 'verifySupabaseJwt').mockResolvedValueOnce({
-      sub: 'user-jwt',
-      email: 'jwt@example.com',
-      user_metadata: { name: 'JWT User' },
-      app_metadata: {
-        trackmun: {
-          role: 'delegate',
-          registrationStatus: 'approved',
-        },
+    const mockSupabase = {
+      auth: {
+        getClaims: vi.fn().mockResolvedValue({
+          data: {
+            sub: 'user-jwt',
+            email: 'jwt@example.com',
+            user_metadata: { name: 'JWT User' },
+            app_metadata: {
+              trackmun: {
+                role: 'delegate',
+                registrationStatus: 'approved',
+              },
+            },
+            iat: Math.floor(Date.now() / 1000),
+          },
+          error: null,
+        }),
       },
-      iat: Math.floor(Date.now() / 1000),
-    });
+    };
+    vi.mocked(supabaseLib.getSupabase).mockReturnValue(mockSupabase as any);
 
     const token = makeThreePartToken({ sub: 'user-jwt' });
     const c = createMockContext(`Bearer ${token}`, {
       IMPERSONATION_SECRET: impersonationSecret,
-      SUPABASE_JWT_SECRET: supabaseJwtSecret,
+      JWKS_KV: mockKV,
+      SUPABASE_URL: supabaseUrl,
     });
     const next = vi.fn().mockResolvedValue(undefined);
     await withAuth(c as never, next);
@@ -238,11 +263,19 @@ describe('withAuth', () => {
   });
 
   it('falls back to Turso when app_metadata.trackmun is missing', async () => {
-    vi.spyOn(jwtLib, 'verifySupabaseJwt').mockResolvedValueOnce({
-      sub: 'user-db',
-      email: 'db@example.com',
-      user_metadata: { name: 'DB User' },
-    });
+    const mockSupabase = {
+      auth: {
+        getClaims: vi.fn().mockResolvedValue({
+          data: {
+            sub: 'user-db',
+            email: 'db@example.com',
+            user_metadata: { name: 'DB User' },
+          },
+          error: null,
+        }),
+      },
+    };
+    vi.mocked(supabaseLib.getSupabase).mockReturnValue(mockSupabase as any);
 
     const userRow = {
       id: 'user-db',
@@ -265,7 +298,8 @@ describe('withAuth', () => {
     const token = makeThreePartToken({ sub: 'user-db', email: 'db@example.com' });
     const c = createMockContext(`Bearer ${token}`, {
       IMPERSONATION_SECRET: impersonationSecret,
-      SUPABASE_JWT_SECRET: supabaseJwtSecret,
+      JWKS_KV: mockKV,
+      SUPABASE_URL: supabaseUrl,
     });
     const next = vi.fn().mockResolvedValue(undefined);
     await withAuth(c as never, next);

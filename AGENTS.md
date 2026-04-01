@@ -246,19 +246,21 @@ To ensure TrackMUN remains a premium, professional platform and avoids "AI slop"
 ### Authorization
 
 - Every protected route must check the caller's role **explicitly**.
-- **Identity** is managed by **[Better Auth](https://www.better-auth.com/)** on the Worker (`apps/worker/src/lib/auth.ts`): email/password, sessions, and a **JWT plugin**. The client sends **`Authorization: Bearer <access_token>`** on API calls.
-- **Authorization (roles)** always comes from the **Turso `users` row** for the subject (`sub` / user id). Do **not** trust JWT custom claims alone for RBAC; load the user from Turso after verification.
+- **Identity** is managed by **Supabase Auth**: the client sends **`Authorization: Bearer <access_token>`** on API calls. The Worker verifies the access JWT (`apps/worker/src/lib/verify-supabase-jwt.ts`).
+- **RBAC (role and registration status)** for normal access tokens: read from **`app_metadata.trackmun`** on the **verified** JWT payload (`role`, `registrationStatus`, optional `council`), validated in `apps/worker/src/lib/jwt-user-claims.ts`. This avoids a per-request Turso read on the hot path. **Turso `users` remains the source of truth**; the Worker calls **`SupabaseAdmin.syncTrackmunJwtMetadata`** after every Turso write that changes role, registration status, council, or relevant profile fields so the next issued access token matches the database.
+- **Fallback**: if `app_metadata.trackmun` is missing or invalid (legacy sessions), **`withAuth`** loads the user from Turso by `sub` once per request.
+- **Staleness**: JWT claims are current until the access token expires or is refreshed. Prefer a **short access-token TTL** in Supabase so admin approval or role changes propagate quickly. After admin actions, the SPA should **refresh the session** so the client receives a new JWT.
 - **Registration Status**: New delegates have `registration_status = 'pending'`. They must be approved by admin before accessing full features.
 - Role hierarchy: `admin > chair > oc > delegate`
 - **Admin Provisioning**: Admin users can provision new internal accounts (`oc` and `chair`) via the `AdminController.createUser` method.
-- **Impersonation**: admins receive a short-lived **HMAC-SHA256** JWT (`typ: 'impersonation'`, secret `IMPERSONATION_SECRET`) only for targets whose role is **`oc` or `chair`**. Log events in **`impersonation_log`** via `AuthService.logImpersonation`.
-- Required bindings / secrets are declared on **`Bindings`** in `apps/worker/src/types/env.ts` (e.g. `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `IMPERSONATION_SECRET`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `MEDIA`). Optional: `ENVIRONMENT` (`production` toggles Better Auth cookie settings in `lib/auth.ts`).
+- **Impersonation**: admins receive a short-lived **HMAC-SHA256** JWT (`typ: 'impersonation'`, secret `IMPERSONATION_SECRET`) only for targets whose role is **`oc` or `chair`**. The acting user is always loaded from **Turso** by `actingAs`. Log events in **`impersonation_log`** via `AuthService.logImpersonation`.
+- Required bindings / secrets are declared on **`Bindings`** in `apps/worker/src/types/env.ts` (e.g. `SUPABASE_JWT_SECRET`, `SUPABASE_URL`, `IMPERSONATION_SECRET`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `MEDIA`). Optional: `ENVIRONMENT`.
 - Return `401 Unauthorized` for missing/invalid tokens. Return `403 Forbidden` for insufficient permissions or pending/rejected registration status.
 
 ### Middleware Patterns
 
 - Apply authentication and role checks as **per-route** (or route-group) middleware.
-- **`withAuth`**: parses `Bearer` token → if payload `typ === 'impersonation'`, verify HMAC and load **acting** user from D1; otherwise verify Better Auth access JWT (JWKS) and load user by `sub` from D1. Sets `user`, `isImpersonating`, and optional `adminId` on the context.
+- **`withAuth`**: parses `Bearer` token → if payload `typ === 'impersonation'`, verify HMAC and load the **acting** user from Turso; otherwise verify the Supabase access JWT and build `user` from **`app_metadata.trackmun`** when present, else load the user from Turso by `sub`. Sets `user`, `isImpersonating`, and optional `adminId` on the context.
 - **`requireRole(...roles)`**: ensures `user.role` is one of the allowed roles.
 - Example pattern:
 
@@ -467,18 +469,15 @@ turso db shell <database-name> < migrations/0001_*.sql
 
 ## 8. QR Code & Security Rules
 
-### QR Code Signing
+### QR Code Scanning
 
-- All QR codes must be signed using **HMAC-SHA256** with a secret key stored in environment variables.
-- The QR payload must include: `delegateId`, `purpose` (e.g., `attendance`, `benefit`), `issuedAt` (Unix timestamp), `expiresAt` (Unix timestamp).
-- QR codes must have a defined expiration. Expired QR codes must be rejected.
+- The QR payload is a persistent, unique identifier per delegate (e.g. their `userId` or council assignment short-code).
+- QR codes are static to allow printing on physical badges.
 
 ### Validation Rules
 
-- The scanning Worker must verify the HMAC signature before processing any QR payload.
-- **Never trust client-supplied QR data.** Always re-derive and validate server-side.
-- After validating the signature and expiration, check the token against a **nonce store** (D1 table) to prevent replay attacks. Mark the token as used upon first valid scan.
-- One-time-use tokens must be invalidated immediately after first successful scan.
+- **Never trust client-supplied QR data.** Ensure the scanned ID maps to an approved delegate in the database before processing.
+- Replay protection is handled intrinsically by the composite keys in `attendance_records` and `benefit_redemptions`.
 
 ### General Security
 

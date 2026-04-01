@@ -194,7 +194,7 @@ export const FullyPaidDashboard: React.FC = () => {
                 {/* QR Code */}
                 {/* <div className="relative flex h-full items-center justify-center rounded-xl bg-transparent p-4"> */}
                 <QRCode
-                  value={uniqueId}
+                  value={user?.id || uniqueId}
                   size={180}
                   level="M"
                   fgColor={qrFg}
@@ -381,7 +381,7 @@ export const FullyPaidDashboard: React.FC = () => {
 
               <div className="flex items-center justify-center">
                 <QRCode
-                  value={uniqueId}
+                  value={user?.id || uniqueId}
                   size={260}
                   level="M"
                   fgColor={qrFg}
