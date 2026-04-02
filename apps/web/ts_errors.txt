@@ -1,0 +1,54 @@
+functions/functions/api/[[path]].ts(21,38): error TS2306: File '/home/youssef/Documents/trackmun/apps/web/functions/functions/api/routes/registration.ts' is not a module.
+functions/functions/api/controllers/admin/registration.controller.ts(122,46): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+functions/functions/api/controllers/oc/oc.controller.ts(42,11): error TS6133: 'service' is declared but its value is never read.
+functions/functions/api/db/seed.ts(3,1): error TS6133: 'eq' is declared but its value is never read.
+functions/functions/api/lib/verify-supabase-jwt.ts(149,7): error TS2345: Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'BufferSource'.
+  Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'ArrayBufferView<ArrayBuffer>'.
+    Types of property 'buffer' are incompatible.
+      Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+        Type 'SharedArrayBuffer' is not assignable to type 'ArrayBuffer'.
+          Types of property '[Symbol.toStringTag]' are incompatible.
+            Type '"SharedArrayBuffer"' is not assignable to type '"ArrayBuffer"'.
+functions/functions/api/middleware/auth.ts(7,32): error TS6133: 'verifySupabaseJwt' is declared but its value is never read.
+functions/functions/api/routes/admin/admins.ts(5,58): error TS6133: 'ImpersonateResponseSchema' is declared but its value is never read.
+functions/functions/api/routes/admin/admins.ts(79,3): error TS2345: Argument of type '(c: AdminContext) => Promise<JSONRespondReturn<{ success: false; error: string; }, 500> | JSONRespondReturn<{ success: true; data: { id: string; role: "delegate" | "oc" | "chair" | "admin"; ... 11 more ...; paymentProofR2Key?: string | ... 1 more ... | undefined; }; }, 201> | JSONRespondReturn<...>>' is not assignable to parameter of type 'Handler<{ Bindings: Bindings; Variables: AuthContext; }, any, {}, MaybePromise<RouteConfigToTypedResponse<{ method: "post"; path: "/"; request: { body: { content: { 'application/json': { schema: ZodObject<{ email: ZodString; name: ZodString; password: ZodString; role: ZodEnum<...>; council: ZodOptional<...>; }, "str...'.
+  Type 'Promise<JSONRespondReturn<{ success: false; error: string; }, 500> | JSONRespondReturn<{ success: true; data: { id: string; role: "delegate" | "oc" | "chair" | "admin"; name: string; email: string; ... 9 more ...; paymentProofR2Key?: string | ... 1 more ... | undefined; }; }, 201> | JSONRespondReturn<...>>' is not assignable to type 'MaybePromise<RouteConfigToTypedResponse<{ method: "post"; path: "/"; request: { body: { content: { 'application/json': { schema: ZodObject<{ email: ZodString; name: ZodString; password: ZodString; role: ZodEnum<[...]>; council: ZodOptional<...>; }, "strip", ZodTypeAny, { ...; }, { ...; }>; }; }; }; }; responses: { ....'.
+    Type 'Promise<JSONRespondReturn<{ success: false; error: string; }, 500> | JSONRespondReturn<{ success: true; data: { id: string; role: "delegate" | "oc" | "chair" | "admin"; name: string; email: string; ... 9 more ...; paymentProofR2Key?: string | ... 1 more ... | undefined; }; }, 201> | JSONRespondReturn<...>>' is not assignable to type 'Promise<RouteConfigToTypedResponse<{ method: "post"; path: "/"; request: { body: { content: { 'application/json': { schema: ZodObject<{ email: ZodString; name: ZodString; password: ZodString; role: ZodEnum<[...]>; council: ZodOptional<...>; }, "strip", ZodTypeAny, { ...; }, { ...; }>; }; }; }; }; responses: { ...; }...'.
+      Type 'JSONRespondReturn<{ success: false; error: string; }, 500> | JSONRespondReturn<{ success: true; data: { id: string; role: "delegate" | "oc" | "chair" | "admin"; name: string; email: string; ... 9 more ...; paymentProofR2Key?: string | ... 1 more ... | undefined; }; }, 201> | JSONRespondReturn<...>' is not assignable to type 'RouteConfigToTypedResponse<{ method: "post"; path: "/"; request: { body: { content: { 'application/json': { schema: ZodObject<{ email: ZodString; name: ZodString; password: ZodString; role: ZodEnum<["delegate", "oc", "chair", "admin"]>; council: ZodOptional<...>; }, "strip", ZodTypeAny, { ...; }, { ...; }>; }; }; };...'.
+        Type 'JSONRespondReturn<{ success: false; error: string; }, 500>' is not assignable to type 'RouteConfigToTypedResponse<{ method: "post"; path: "/"; request: { body: { content: { 'application/json': { schema: ZodObject<{ email: ZodString; name: ZodString; password: ZodString; role: ZodEnum<["delegate", "oc", "chair", "admin"]>; council: ZodOptional<...>; }, "strip", ZodTypeAny, { ...; }, { ...; }>; }; }; };...'.
+          Type 'JSONRespondReturn<{ success: false; error: string; }, 500>' is not assignable to type 'TypedResponse<{ success: false; error: string; }, 400, "json">'.
+            Types of property '_status' are incompatible.
+              Type '500' is not assignable to type '400'.
+functions/functions/api/routes/chairs/index.ts(62,5): error TS2345: Argument of type '(c: ChairContext) => Promise<JSONRespondReturn<{ success: false; error: string; }, 404> | JSONRespondReturn<{ success: true; data: { name: string; email: string; registrationStatus: "pending" | "approved" | "rejected"; userId: string; answers: { ...; }[]; }; }, 200>>' is not assignable to parameter of type 'Handler<{ Bindings: Bindings; Variables: AuthContext; }, any, {}, MaybePromise<TypedResponse<{ success: boolean; data?: any; }, 200, "json">>>'.
+  Type 'Promise<JSONRespondReturn<{ success: false; error: string; }, 404> | JSONRespondReturn<{ success: true; data: { name: string; email: string; registrationStatus: "pending" | "approved" | "rejected"; userId: string; answers: { ...; }[]; }; }, 200>>' is not assignable to type 'MaybePromise<TypedResponse<{ success: boolean; data?: any; }, 200, "json">>'.
+    Type 'Promise<JSONRespondReturn<{ success: false; error: string; }, 404> | JSONRespondReturn<{ success: true; data: { name: string; email: string; registrationStatus: "pending" | "approved" | "rejected"; userId: string; answers: { ...; }[]; }; }, 200>>' is not assignable to type 'Promise<TypedResponse<{ success: boolean; data?: any; }, 200, "json">>'.
+      Type 'JSONRespondReturn<{ success: false; error: string; }, 404> | JSONRespondReturn<{ success: true; data: { name: string; email: string; registrationStatus: "pending" | "approved" | "rejected"; userId: string; answers: { ...; }[]; }; }, 200>' is not assignable to type 'TypedResponse<{ success: boolean; data?: any; }, 200, "json">'.
+        Type 'JSONRespondReturn<{ success: false; error: string; }, 404>' is not assignable to type 'TypedResponse<{ success: boolean; data?: any; }, 200, "json">'.
+          Types of property '_status' are incompatible.
+            Type '404' is not assignable to type '200'.
+functions/functions/api/routes/delegates.ts(6,28): error TS6133: 'users' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(6,3): error TS6133: 'delegateAnswers' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(7,3): error TS6133: 'postLikes' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(8,3): error TS6133: 'postReplies' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(9,3): error TS6133: 'postMedia' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(11,3): error TS6133: 'benefitRedemptions' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(12,3): error TS6133: 'attendanceRecords' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(13,3): error TS6133: 'qrTokens' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(14,3): error TS6133: 'impersonationLog' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(15,3): error TS6133: 'countryAssignments' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(16,3): error TS6133: 'awards' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(17,3): error TS6133: 'qrScanLog' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(19,18): error TS6133: 'inArray' is declared but its value is never read.
+functions/functions/api/services/admin/admin.service.ts(19,27): error TS6133: 'count' is declared but its value is never read.
+functions/functions/api/services/delegates/setup.service.ts(2,10): error TS6133: 'users' is declared but its value is never read.
+functions/functions/api/services/oc/oc.service.ts(71,5): error TS6133: 'periodId' is declared but its value is never read.
+functions/tests/unit/app/docs.test.ts(1,32): error TS6133: 'vi' is declared but its value is never read.
+functions/tests/unit/app/docs.test.ts(15,5): error TS2353: Object literal may only specify known properties, and 'SUPABASE_JWT_SECRET' does not exist in type 'Bindings'.
+functions/tests/unit/app/docs.test.ts(21,43): error TS2307: Cannot find module '#src/index' or its corresponding type declarations.
+functions/tests/unit/app/docs.test.ts(31,43): error TS2307: Cannot find module '#src/index' or its corresponding type declarations.
+functions/tests/unit/services/chairs/chairs.service.test.ts(83,22): error TS2339: Property 'registrationStatus' does not exist on type 'never'.
+src/components/chairs/ChairsLayout.tsx(5,34): error TS2306: File '/home/youssef/Documents/trackmun/apps/web/src/components/chairs/ChairsAppSidebar.tsx' is not a module.
+src/main.tsx(5,17): error TS2306: File '/home/youssef/Documents/trackmun/apps/web/src/App.tsx' is not a module.
+src/pages/admin/AdminCouncilsPage.tsx(138,42): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'SetStateAction<string>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string>'.
