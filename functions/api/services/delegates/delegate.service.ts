@@ -35,6 +35,7 @@ export class DelegateService {
       depositAmount: profile.depositAmount,
       fullAmount: profile.fullAmount,
       paymentProofR2Key: profile.paymentProofR2Key,
+      identifier: profile.identifier,
     };
   }
 

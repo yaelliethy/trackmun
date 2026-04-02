@@ -82,8 +82,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   paymentPending,
 }) => {
   const isDelegateTable = users.some((u) => u.role === "delegate")
-  const colCount =
-    2 + (showCouncilColumn ? 1 : 0) + (isDelegateTable ? 1 : 0)
+
 
   return (
     <div className="overflow-x-auto">
@@ -99,9 +98,14 @@ export const UserTable: React.FC<UserTableProps> = ({
               </TableHead>
             )}
             {isDelegateTable && (
-              <TableHead className="text-[11px] font-semibold tracking-caps text-muted-foreground">
-                Payments
-              </TableHead>
+              <>
+                <TableHead className="text-[11px] font-semibold tracking-caps text-muted-foreground">
+                  Payments
+                </TableHead>
+                <TableHead className="text-[11px] font-semibold tracking-caps text-muted-foreground">
+                  Attended
+                </TableHead>
+              </>
             )}
             <TableHead className="w-[1%] pr-6 text-right text-[11px] font-semibold tracking-caps text-muted-foreground">
               Actions
@@ -125,9 +129,14 @@ export const UserTable: React.FC<UserTableProps> = ({
                   </TableCell>
                 )}
                 {isDelegateTable && (
-                  <TableCell className="py-4">
-                    <Skeleton className="h-5 w-28 rounded" />
-                  </TableCell>
+                  <>
+                    <TableCell className="py-4">
+                      <Skeleton className="h-5 w-28 rounded" />
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <Skeleton className="h-5 w-12 rounded" />
+                    </TableCell>
+                  </>
                 )}
                 <TableCell className="pr-6 py-4 text-right">
                   <div className="flex justify-end gap-1">
@@ -139,7 +148,7 @@ export const UserTable: React.FC<UserTableProps> = ({
             ))
           ) : users.length === 0 ? (
             <TableRow className="border-0 hover:bg-transparent">
-              <TableCell colSpan={colCount} className="p-0">
+              <TableCell colSpan={5} className="p-0">
                 <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground/50">
                     <Users className="h-5 w-5" aria-hidden />
@@ -179,63 +188,75 @@ export const UserTable: React.FC<UserTableProps> = ({
                   </TableCell>
                 )}
 
-                {/* Payment status */}
+                {/* Payment status and Attendance */}
                 {isDelegateTable && (
-                  <TableCell className="align-middle">
-                    {user.role === "delegate" && (
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-muted-foreground/70 w-11 shrink-0">
-                            Deposit
-                          </span>
-                          <PaymentBadge
-                            status={user.depositPaymentStatus || "pending"}
-                            isPending={
-                              paymentPending?.userId === user.id &&
-                              paymentPending.field === "depositPaymentStatus"
-                            }
-                            onClick={() =>
-                              onTogglePaymentStatus?.(
-                                user,
-                                "depositPaymentStatus",
-                                user.depositPaymentStatus || "pending"
-                              )
-                            }
-                          />
+                  <>
+                    <TableCell className="align-middle">
+                      {user.role === "delegate" && (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-muted-foreground/70 w-11 shrink-0">
+                              Deposit
+                            </span>
+                            <PaymentBadge
+                              status={user.depositPaymentStatus || "pending"}
+                              isPending={
+                                paymentPending?.userId === user.id &&
+                                paymentPending.field === "depositPaymentStatus"
+                              }
+                              onClick={() =>
+                                onTogglePaymentStatus?.(
+                                  user,
+                                  "depositPaymentStatus",
+                                  user.depositPaymentStatus || "pending"
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-muted-foreground/70 w-11 shrink-0">
+                              Full
+                            </span>
+                            <PaymentBadge
+                              status={user.fullPaymentStatus || "pending"}
+                              isPending={
+                                paymentPending?.userId === user.id &&
+                                paymentPending.field === "fullPaymentStatus"
+                              }
+                              onClick={() =>
+                                onTogglePaymentStatus?.(
+                                  user,
+                                  "fullPaymentStatus",
+                                  user.fullPaymentStatus || "pending"
+                                )
+                              }
+                            />
+                          </div>
+                          {user.paymentProofR2Key && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 text-[11px] text-primary hover:text-primary"
+                              onClick={() => onReviewPayment?.(user)}
+                            >
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              Review payment
+                            </Button>
+                          )}
                         </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="align-middle">
+                      {user.role === "delegate" && (
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-muted-foreground/70 w-11 shrink-0">
-                            Full
+                          <span className="inline-flex items-center justify-center min-w-[2rem] rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-wide text-foreground">
+                            {user.daysAttended || 0}
                           </span>
-                          <PaymentBadge
-                            status={user.fullPaymentStatus || "pending"}
-                            isPending={
-                              paymentPending?.userId === user.id &&
-                              paymentPending.field === "fullPaymentStatus"
-                            }
-                            onClick={() =>
-                              onTogglePaymentStatus?.(
-                                user,
-                                "fullPaymentStatus",
-                                user.fullPaymentStatus || "pending"
-                              )
-                            }
-                          />
+                          <span className="text-[10px] text-muted-foreground">days</span>
                         </div>
-                        {user.paymentProofR2Key && (
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="h-auto p-0 text-[11px] text-primary hover:text-primary"
-                            onClick={() => onReviewPayment?.(user)}
-                          >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            Review payment
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </TableCell>
+                      )}
+                    </TableCell>
+                  </>
                 )}
 
                 {/* Actions */}

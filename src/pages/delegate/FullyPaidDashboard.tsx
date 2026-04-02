@@ -31,6 +31,7 @@ interface DelegateProfile {
   depositAmount: number | null
   fullAmount: number | null
   paymentProofR2Key: string | null
+  identifier: string | null
 }
 
 interface AttendanceRecord {
@@ -113,36 +114,11 @@ export const FullyPaidDashboard: React.FC = () => {
 
   if (!user) return null
 
-  // Generate unique identifier: [COUNCIL ACRONYM]-[4-digit random number based on user ID]
-  // Extract committee acronym from council name (e.g., "Human Rights Council" -> "HRC")
-  const getCouncilAcronym = (council: string): string => {
-    // Common UN council acronyms
-    const acronyms: Record<string, string> = {
-      'human rights council': 'HRC',
-      'disarmament and international security': 'DISEC',
-      'special political and decolonization': 'SPECPOL',
-      'economic and financial': 'ECOFIN',
-      'social humanitarian cultural': 'SOCHUM',
-      'legal': 'LEGAL',
-      'security council': 'UNSC',
-      'economic and social council': 'ECOSOC',
-      'general assembly': 'GA',
-    }
-    const lower = council.toLowerCase()
-    for (const [key, value] of Object.entries(acronyms)) {
-      if (lower.includes(key)) return value
-    }
-    // Fallback: use first letters of each word
-    return council.split(' ').filter(w => w.length > 0).map(w => w[0]).join('').toUpperCase().slice(0, 4)
-  }
+  if (!user) return null
 
-  const councilAcronym = profile?.council ? getCouncilAcronym(profile.council) : 'DELEGATE'
-  // Generate consistent 4-digit number from user ID
-  const delegateNumber = user?.id
-    ? (Math.abs(user.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10000)
-      .toString().padStart(4, '0'))
-    : '0000'
-  const uniqueId = `${councilAcronym}-${delegateNumber}`
+  // Use real identifier from backend; fallback to user ID for QR value if not assigned
+  const uniqueId = profile?.identifier || user.id
+  const displayId = profile?.identifier || "ASSIGNING..."
 
   return (
     <div className="min-h-screen bg-background">
@@ -221,7 +197,7 @@ export const FullyPaidDashboard: React.FC = () => {
                 {/* Identifier below QR */}
                 <div className="mt-4 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Delegate ID</p>
-                  <p className="text-lg font-bold text-primary font-mono tracking-wider">{uniqueId}</p>
+                  <p className="text-lg font-bold text-primary font-mono tracking-wider">{displayId}</p>
                 </div>
                 <p className="text-center text-xs text-muted-foreground mt-3 transition-colors">
                   Tap to view full size
@@ -414,7 +390,7 @@ export const FullyPaidDashboard: React.FC = () => {
             {/* Delegate ID */}
             <div className="mt-5 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Delegate Identifier</p>
-              <p className="text-2xl font-bold text-primary font-mono tracking-widest">{uniqueId}</p>
+              <p className="text-2xl font-bold text-primary font-mono tracking-widest">{displayId}</p>
             </div>
           </div>
         </DialogContent>

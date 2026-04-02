@@ -71,11 +71,20 @@ export class OcService {
 
   /** Records attendance for a delegate in the active period. Returns result indicating if already recorded. */
   async recordAttendance(
-    delegateId: string,
+    delegateIdOrIdentifier: string,
     _periodId: string,
     sessionLabel: string,
     scannedBy: string
   ): Promise<AttendanceResult> {
+    // Resolve UUID if identifier was provided (e.g. SC-001)
+    const profile = await this.db
+      .select({ userId: delegateProfiles.userId })
+      .from(delegateProfiles)
+      .where(eq(delegateProfiles.identifier, delegateIdOrIdentifier))
+      .get();
+    
+    const delegateId = profile ? profile.userId : delegateIdOrIdentifier;
+
     const delegate = await this.db
       .select({ name: users.name })
       .from(users)
@@ -148,10 +157,19 @@ export class OcService {
 
   /** Redeems a benefit for a delegate. Returns result indicating if already redeemed. */
   async redeemBenefit(
-    delegateId: string,
+    delegateIdOrIdentifier: string,
     benefitId: string,
     scannedBy: string
   ): Promise<BenefitRedeemResult> {
+    // Resolve UUID if identifier was provided (e.g. SC-001)
+    const profile = await this.db
+      .select({ userId: delegateProfiles.userId })
+      .from(delegateProfiles)
+      .where(eq(delegateProfiles.identifier, delegateIdOrIdentifier))
+      .get();
+    
+    const delegateId = profile ? profile.userId : delegateIdOrIdentifier;
+
     const [delegate, benefit] = await Promise.all([
       this.db.select({ name: users.name }).from(users).where(eq(users.id, delegateId)).get(),
       this.db.select().from(benefits).where(eq(benefits.id, benefitId)).get(),
@@ -256,9 +274,7 @@ export class OcService {
       .where(eq(users.id, delegateUserId))
       .get();
 
-    if (!councilRow?.council) return null;
-
-    const prefix = councilRow.shortName?.toUpperCase() ?? 'DEL';
+    const prefix = (councilRow?.shortName || 'DEL').toUpperCase();
 
     const maxRow = await this.db
       .select({
@@ -274,9 +290,15 @@ export class OcService {
     const identifier = `${prefix}-${String(nextNumber).padStart(IDENTIFIER_PAD_LENGTH, '0')}`;
 
     await this.db
-      .update(delegateProfiles)
-      .set({ identifier })
-      .where(eq(delegateProfiles.userId, delegateUserId))
+      .insert(delegateProfiles)
+      .values({
+        userId: delegateUserId,
+        identifier,
+      })
+      .onConflictDoUpdate({
+        target: delegateProfiles.userId,
+        set: { identifier },
+      })
       .run();
 
     return identifier;

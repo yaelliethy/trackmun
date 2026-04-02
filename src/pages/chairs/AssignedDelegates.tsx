@@ -4,7 +4,15 @@ import { chairDashboardService } from "../../services/chairDashboard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Users, ClipboardList, Award, Trash2, Loader2 } from "lucide-react"
+import { getCountriesList } from "@trackmun/shared"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Users, ClipboardList, Award, Trash2, Loader2, Edit, X } from "lucide-react"
 import { toast } from "sonner"
 import { ChairDataPageLayout } from "../../components/chairs/ChairDataPageLayout"
 import {
@@ -39,7 +47,6 @@ import { UserFilters, UserFilterValues } from "../../components/admin/UserFilter
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 
-const COL_COUNT = 3
 
 type AwardDialogTarget = { id: string; name: string; currentAward: string | null }
 
@@ -99,6 +106,50 @@ export const AssignedDelegates: React.FC = () => {
     },
   })
 
+  const [pendingCountryAction, setPendingCountryAction] = useState<'save' | 'unassign' | null>(null)
+
+  const assignCountryMutation = useMutation({
+    mutationFn: ({ userId, country }: { userId: string; country: string }) =>
+      chairDashboardService.assignCountry(userId, country),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chair-assigned-delegates"] })
+      toast.success(pendingCountryAction === 'unassign' ? "Country unassigned." : "Country assigned.")
+      setCountryTarget(null)
+      setCountryInput("")
+      setPendingCountryAction(null)
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to update country.")
+      setPendingCountryAction(null)
+    },
+  })
+
+  const [countryTarget, setCountryTarget] = useState<{ id: string; name: string; country: string | null } | null>(null)
+  const [countryInput, setCountryInput] = useState("")
+  const [isCustomCountry, setIsCustomCountry] = useState(false)
+
+  const countries = getCountriesList()
+  
+  const handleOpenCountryDialog = (d: { id: string; name: string; country: string | null }) => {
+    setCountryTarget(d)
+    const current = d.country ?? ""
+    const isPredefined = countries.some(c => c.name === current)
+    setCountryInput(current)
+    setIsCustomCountry(!!current && !isPredefined)
+  }
+
+  const handleSaveCountry = () => {
+    if (!countryTarget) return
+    setPendingCountryAction('save')
+    assignCountryMutation.mutate({ userId: countryTarget.id, country: countryInput.trim() })
+  }
+
+  const handleUnassignCountry = () => {
+    if (!countryTarget) return
+    setPendingCountryAction('unassign')
+    assignCountryMutation.mutate({ userId: countryTarget.id, country: "" })
+  }
+
   const handleOpenAwardDialog = (d: { id: string; name: string; awards: string | null }) => {
     let current: string | null = null
     if (d.awards) {
@@ -156,11 +207,14 @@ export const AssignedDelegates: React.FC = () => {
         <Table>
           <TableHeader>
             <TableRow className="border-border/60 hover:bg-transparent">
-              <TableHead className="w-[36%] pl-6 text-[11px] font-semibold tracking-caps text-muted-foreground">
+              <TableHead className="w-[30%] pl-6 text-[11px] font-semibold tracking-caps text-muted-foreground">
                 Delegate
               </TableHead>
               <TableHead className="text-[11px] font-semibold tracking-caps text-muted-foreground">
                 Country
+              </TableHead>
+              <TableHead className="text-[11px] font-semibold tracking-caps text-muted-foreground">
+                Days Attended
               </TableHead>
               <TableHead className="w-[1%] pr-6 text-right text-[11px] font-semibold tracking-caps text-muted-foreground">
                 Actions
@@ -180,6 +234,9 @@ export const AssignedDelegates: React.FC = () => {
                   <TableCell className="py-4">
                     <Skeleton className="h-3.5 w-28" />
                   </TableCell>
+                  <TableCell className="py-4">
+                    <Skeleton className="h-3.5 w-12" />
+                  </TableCell>
                   <TableCell className="pr-6 py-4 text-right">
                     <div className="flex justify-end gap-0.5">
                       <Skeleton className="h-8 w-8 rounded-md" />
@@ -190,7 +247,7 @@ export const AssignedDelegates: React.FC = () => {
               ))
             ) : delegates.length === 0 ? (
               <TableRow className="border-0 hover:bg-transparent">
-                <TableCell colSpan={COL_COUNT} className="p-0">
+                <TableCell colSpan={4} className="p-0">
                   <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
                     <div className="flex h-12 w-12 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground/50">
                       <Users className="h-5 w-5" aria-hidden />
@@ -205,7 +262,7 @@ export const AssignedDelegates: React.FC = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              delegates.map((d: { id: string; name: string; email: string; country: string | null; awards: string | null }) => {
+              delegates.map((d: { id: string; name: string; email: string; country: string | null; awards: string | null; daysAttended: number }) => {
                 const awardTitle = parseAwardTitle(d.awards)
                 return (
                   <TableRow
@@ -219,9 +276,24 @@ export const AssignedDelegates: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell className="align-middle text-sm text-muted-foreground">
-                      {d.country?.trim() ? d.country : (
-                        <span className="text-muted-foreground/40">—</span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCountryDialog(d)}
+                        className="group flex items-center gap-1.5 transition-colors hover:text-primary"
+                      >
+                        {d.country?.trim() ? d.country : (
+                          <span className="text-muted-foreground/40 italic">Not assigned</span>
+                        )}
+                        <Edit className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
+                      </button>
+                    </TableCell>
+                    <TableCell className="align-middle">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="px-1.5 font-mono text-[10px]">
+                          {d.daysAttended || 0}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">days</span>
+                      </div>
                     </TableCell>
                     <TableCell className="pr-6 align-middle">
                       <div className="flex justify-end gap-0.5">
@@ -285,6 +357,118 @@ export const AssignedDelegates: React.FC = () => {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog
+        open={!!countryTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCountryTarget(null)
+            setCountryInput("")
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Country</DialogTitle>
+            <DialogDescription>
+              {countryTarget
+                ? `Set the assigned country for ${countryTarget.name}.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="chair-country-select">Country</Label>
+              <Select
+                value={isCustomCountry ? "custom" : countryInput || "none"}
+                onValueChange={(val) => {
+                  if (val === "custom") {
+                    setIsCustomCountry(true)
+                    setCountryInput("")
+                  } else if (val === "none") {
+                    setIsCustomCountry(false)
+                    setCountryInput("")
+                  } else {
+                    setIsCustomCountry(false)
+                    setCountryInput(val)
+                  }
+                }}
+              >
+                <SelectTrigger id="chair-country-select">
+                  <SelectValue placeholder="Select a country" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  <SelectItem value="none">Not assigned</SelectItem>
+                  <SelectItem value="custom" className="font-semibold text-primary">
+                    Custom Delegation...
+                  </SelectItem>
+                  {countries.map((c) => (
+                    <SelectItem key={c.alpha2} value={c.name}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isCustomCountry && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <Label htmlFor="chair-country-custom">Custom Delegation Name</Label>
+                <Input
+                  id="chair-country-custom"
+                  value={countryInput}
+                  onChange={(e) => setCountryInput(e.target.value)}
+                  placeholder="e.g. Arab League"
+                  autoComplete="off"
+                  autoFocus
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between sm:gap-0">
+            <div className="flex gap-2">
+              {countryTarget?.country ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleUnassignCountry}
+                  disabled={assignCountryMutation.isPending}
+                >
+                  {pendingCountryAction === 'unassign' && assignCountryMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Unassign country"
+                  )}
+                </Button>
+              ) : null}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setCountryTarget(null)
+                  setCountryInput("")
+                }}
+                disabled={assignCountryMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSaveCountry}
+                disabled={assignCountryMutation.isPending}
+              >
+                {pendingCountryAction === 'save' && assignCountryMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Save country"
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!awardTarget}

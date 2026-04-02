@@ -66,6 +66,7 @@ export class AdminService {
         user: users,
         profile: delegateProfiles,
         total_count: sql<number>`COUNT(*) OVER()`,
+        daysAttended: sql<number>`(SELECT count(DISTINCT date(scanned_at, 'unixepoch')) FROM attendance_records WHERE user_id = ${users.id})`,
       })
       .from(users)
       .leftJoin(delegateProfiles, eq(users.id, delegateProfiles.userId))
@@ -82,9 +83,10 @@ export class AdminService {
     const userList = rowsWithCount.map(row => ({
       user: row.user,
       profile: row.profile,
+      daysAttended: row.daysAttended,
     }));
     return {
-      users: userList.map(({ user, profile }: any) => ({
+      users: userList.map(({ user, profile, daysAttended }: any) => ({
         id: user.id,
         email: user.email,
         name: user.name,
@@ -98,6 +100,7 @@ export class AdminService {
         depositPaymentStatus: profile?.depositPaymentStatus ?? undefined,
         fullPaymentStatus: profile?.fullPaymentStatus ?? undefined,
         paymentProofR2Key: profile?.paymentProofR2Key ?? undefined,
+        daysAttended: daysAttended ?? 0,
       })),
       total: totalCount || 0,
     };
@@ -131,11 +134,11 @@ export class AdminService {
       }
     }
 
-    // Auto-assign delegate identifier when status changes to 'approved'
-    // @ts-ignore
-    if (input.registrationStatus === 'approved') {
-      const user = await this.getUserById(id);
-      if (user?.role === 'delegate') {
+    // Auto-assign delegate identifier when status changes to 'approved' or if already approved but missing one
+    const userAfter = await this.getUserById(id);
+    if (userAfter?.registrationStatus === 'approved' && userAfter?.role === 'delegate') {
+      const profile = await this.db.select({ identifier: delegateProfiles.identifier }).from(delegateProfiles).where(eq(delegateProfiles.userId, id)).get();
+      if (!profile?.identifier) {
         const ocService = new OcService(this.db);
         await ocService.assignIdentifier(id);
       }
@@ -263,6 +266,18 @@ export class AdminService {
           emailVerified: true,
         })
         .run();
+
+      // Ensure delegate profile and identifier exist if role is delegate
+      if (role === 'delegate') {
+        await this.db.insert(delegateProfiles).values({
+          userId: res.id,
+          depositPaymentStatus: 'paid', // Provisioned users are usually fully paid/approved
+          fullPaymentStatus: 'paid',
+        }).run();
+
+        const ocService = new OcService(this.db);
+        await ocService.assignIdentifier(res.id);
+      }
 
       try {
         await supabase.syncTrackmunJwtMetadata(

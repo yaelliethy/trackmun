@@ -95,6 +95,7 @@ export class ChairsService {
         identifier: delegateProfiles.identifier,
         country: delegateProfiles.country,
         awards: delegateProfiles.awards,
+        daysAttended: sql<number>`(SELECT count(DISTINCT date(scanned_at, 'unixepoch')) FROM attendance_records WHERE user_id = ${users.id})`,
       })
       .from(users)
       .leftJoin(delegateProfiles, eq(users.id, delegateProfiles.userId))

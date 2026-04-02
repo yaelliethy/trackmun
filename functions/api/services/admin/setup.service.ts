@@ -1,5 +1,5 @@
 import { DbType } from '../../db/client';
-import { users, delegateProfiles } from '../../db/schema';
+import { users, delegateProfiles, councils } from '../../db/schema';
 import { count, eq } from 'drizzle-orm';
 import { Bindings } from '../../types/env';
 import { getSupabaseAdmin } from '../../lib/supabase-admin';
@@ -46,6 +46,7 @@ export class SetupService {
         return { ok: false, error: 'Failed to create admin user via Supabase' };
       }
 
+      await this.seedInitialData();
       await this.seedAdmin(user.id, email, name);
 
       try {
@@ -67,6 +68,27 @@ export class SetupService {
       const message = e instanceof Error ? e.message : 'Unknown error';
       return { ok: false, error: message };
     }
+  }
+
+  async seedInitialData() {
+    const now = new Date();
+    
+    // Seed standard councils with short names for the identification system
+    const standardCouncils = [
+      { id: crypto.randomUUID(), name: 'Security Council', shortName: 'UNSC', capacity: 15 },
+      { id: crypto.randomUUID(), name: 'Human Rights Council', shortName: 'HRC', capacity: 47 },
+      { id: crypto.randomUUID(), name: 'Economic and Social Council', shortName: 'ECOSOC', capacity: 54 },
+      { id: crypto.randomUUID(), name: 'Disarmament and International Security', shortName: 'DISEC', capacity: 193 },
+      { id: crypto.randomUUID(), name: 'General Assembly', shortName: 'GA', capacity: 193 },
+      { id: crypto.randomUUID(), name: 'Legal Committee', shortName: 'LEGAL', capacity: 193 },
+      { id: crypto.randomUUID(), name: 'Economic and Financial Committee', shortName: 'ECOFIN', capacity: 193 },
+    ];
+
+    await this.db.insert(councils).values(standardCouncils.map(c => ({
+      ...c,
+      createdAt: now,
+      updatedAt: now,
+    }))).onConflictDoNothing({ target: councils.name }).run();
   }
 
   async seedAdmin(id: string, email: string, name: string) {

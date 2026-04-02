@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
+import { useTheme } from 'next-themes'
 import { RootLayout } from './components/layout/RootLayout'
 import { RootRedirect } from './components/common/RootRedirect'
 
@@ -127,11 +128,22 @@ const router = createBrowserRouter([
   },
 ])
 
+function ThemedToaster() {
+  const { resolvedTheme } = useTheme()
+  return (
+    <Toaster
+      position="top-right"
+      richColors
+      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+    />
+  )
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-      <Toaster position="top-right" richColors />
+      <ThemedToaster />
     </QueryClientProvider>
   )
 }

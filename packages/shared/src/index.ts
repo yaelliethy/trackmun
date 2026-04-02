@@ -20,6 +20,7 @@ export const UserSchema = z.object({
   depositPaymentStatus: z.enum(['pending', 'paid']).nullable().optional(),
   fullPaymentStatus: z.enum(['pending', 'paid']).nullable().optional(),
   paymentProofR2Key: z.string().nullable().optional(),
+  daysAttended: z.number().nullable().optional(),
 });
 
 export type User = z.infer<typeof UserSchema>;
