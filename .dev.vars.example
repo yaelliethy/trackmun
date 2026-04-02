@@ -1,0 +1,29 @@
+# Copy to .dev.vars and fill in values. Never commit .dev.vars.
+
+TURSO_DATABASE_URL=http://127.0.0.1:8080
+TURSO_AUTH_TOKEN=placeholder
+
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_JWT_SECRET=
+
+IMPERSONATION_SECRET=change-me-min-32-chars-for-impersonation-jwt
+
+# Optional: Brevo transactional email
+BREVO_API_KEY=
+BREVO_SENDER_EMAIL=noreply@example.org
+BREVO_SENDER_NAME=TrackMUN
+BREVO_WELCOME_TEMPLATE_ID=
+BREVO_QR_REMINDER_TEMPLATE_ID=
+BREVO_PASSWORD_RESET_TEMPLATE_ID=
+
+QR_SECRET=change-me-min-32-chars-for-qr-signing
+FRONTEND_URL=http://localhost:3000
+
+# R2 credentials if generating presigned URLs locally (see upload service)
+# AWS_ACCESS_KEY_ID=
+# AWS_SECRET_ACCESS_KEY=
+# R2_ACCOUNT_ID=
+
+ENVIRONMENT=development

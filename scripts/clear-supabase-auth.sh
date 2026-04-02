@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Delete every Supabase Auth user via Admin API (paginated).
-# Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in apps/web/.dev.vars
+# Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .dev.vars at repo root
 set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
-VARS_FILE="$REPO_ROOT/apps/web/.dev.vars"
+VARS_FILE="$REPO_ROOT/.dev.vars"
 
 if [ ! -f "$VARS_FILE" ]; then
   echo "clear-supabase-auth: $VARS_FILE not found; skipping Supabase user cleanup."

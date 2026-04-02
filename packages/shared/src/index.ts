@@ -36,14 +36,6 @@ export const ApiResponseSchema = z.discriminatedUnion('success', [
   }),
 ]);
 
-export type ApiResponse<T = any> =
-  | { success: true; data: T }
-  | { success: false; error: string; code?: string };
-
-export const ImpersonateResponseSchema = z.object({
-  token: z.string(),
-});
-
 export const UpdateUserSchema = z.object({
   name: z.string().min(1).optional(),
   council: z.string().nullable().optional(),
@@ -141,8 +133,6 @@ export const CreateUserSchema = z.object({
   council: z.string().optional(),
 });
 
-export type CreateUser = z.infer<typeof CreateUserSchema>;
-
 export const RegisterUserSchema = z.object({
   email: z.string().email(),
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
@@ -189,12 +179,9 @@ export const GetPresignedUrlRequestSchema = z.object({
   contentType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']),
   size: z.number().int().max(10 * 1024 * 1024, 'File size must be less than 10MB'),
 });
-export type GetPresignedUrlRequest = z.infer<typeof GetPresignedUrlRequestSchema>;
-
 export const ConfirmPaymentProofSchema = z.object({
   r2Key: z.string().min(1),
 });
-export type ConfirmPaymentProof = z.infer<typeof ConfirmPaymentProofSchema>;
 
 export const UpdateDelegatePaymentSchema = z.object({
   depositPaymentStatus: z.enum(['pending', 'paid']).optional(),

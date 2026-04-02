@@ -19,8 +19,6 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-      - /app/apps/worker/node_modules
-      - /app/apps/web/node_modules
       - /app/packages/shared/node_modules
     ports:
       - "3000:3000"
@@ -29,8 +27,6 @@ services:
       - FORCE_COLOR=1
       - TURSO_DATABASE_URL=http://trackmun-sqld:8080
       - TURSO_AUTH_TOKEN=placeholder
-      - BETTER_AUTH_SECRET=test-better-auth-secret-32chars-minimum-12345
-      - BETTER_AUTH_URL=http://localhost:8787
       - IMPERSONATION_SECRET=test-impersonation-secret-32chars-min-12345
       - QR_SECRET=your-qr-secret-key-min-32-chars-5678
       - FRONTEND_URL=http://localhost:3000
@@ -39,5 +35,5 @@ services:
              echo 'Waiting for sqld network to be ready...' &&
              sleep 10 &&
              echo 'Pushing database schema to sqld...' &&
-             pnpm --filter @trackmun/worker run db:push &&
+             pnpm run db:push &&
              pnpm dev"

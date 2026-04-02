@@ -22,13 +22,13 @@ This is a full-stack Model United Nations (MUN) platform built on Cloudflare Pag
 
 ```text
 /
-├── apps/
-│   └── web/            # Full-stack Cloudflare Pages application
-│       ├── src/        # React + shadcn/ui application (frontend)
-│       ├── functions/  # Cloudflare Pages Functions (API backend)
-│       └── migrations/ # Turso SQL migrations
+├── src/                 # React + shadcn/ui application (frontend)
+├── functions/           # Cloudflare Pages Functions (API backend under functions/api/)
+├── migrations/          # Turso SQL migrations
+├── public/              # Static assets (e.g. logo)
+├── brand.config.ts      # Conference branding (see below)
 └── packages/
-    └── shared/         # Shared TypeScript types and Zod schemas
+    └── shared/          # Shared TypeScript types and Zod schemas (@trackmun/shared)
 ```
 
 ### Core Principles
@@ -102,7 +102,7 @@ Agents must respect this service boundary. Do not create cross-service dependenc
 - Use **React** with functional components and hooks only. No class components.
 - Use **shadcn/ui** as the primary component library. Components are located in `src/components/ui/`.
 - Build reusable, composable components. A component should do one thing well.
-- Keep components in logically named directories under `apps/web/src/components/`.
+- Keep components in logically named directories under `src/components/`.
 - **Follow the [Design & UX Philosophy](#design--ux-philosophy)** to ensure a consistent and premium user experience.
 
 ### Design System
@@ -133,19 +133,22 @@ The platform uses a strict two-color primary palette:
 ### File Organization
 
 ```text
-apps/web/src/
-├── components/ # Reusable UI components
+src/
+├── components/   # Reusable UI components
 │   ├── ui/       # shadcn/ui base components
 │   ├── common/   # Shared elements
 │   ├── delegates/
 │   ├── press/
 │   └── ...
-├── pages/      # Route-level page components
-├── hooks/      # Custom React hooks
-├── services/   # API client functions (typed fetch wrappers)
-├── types/      # Shared TypeScript types
-└── utils/      # Pure utility functions
+├── pages/        # Route-level page components
+├── hooks/        # Custom React hooks
+├── services/     # API client functions (typed fetch wrappers)
+├── config/       # e.g. brand re-export
+├── lib/          # Client utilities (e.g. cn)
+└── utils/        # Pure utility functions
 ```
+
+Shared API contracts and Zod schemas live in **`packages/shared`** (`@trackmun/shared`), not under `src/types/`.
 
 ---
 
@@ -160,26 +163,27 @@ apps/web/src/
   - **Services**: Contain business logic and database operations (stateless).
 - Route handlers must be **small and focused**. Extract business logic into service functions; keep handlers as thin orchestrators.
 - A handler's responsibility: parse the request → validate → authorize → call service → return response.
+- **Route modules** (`routes/*.ts`) must contain **only** OpenAPI `createRoute` definitions and references to controller methods. Do not put database queries, `fetch()` calls to external APIs, or other business logic in route files—use controllers and services instead.
 
 ### File Organization (Functions)
 
 ```text
-apps/web/functions/api/
+functions/api/
 ├── [[path]].ts       # Entry point for all /api/* routes (Hono app)
 ├── controllers/      # Domain-specific controllers
 ├── services/         # Business logic & DB operations
-├── routes/           # OpenAPI route definitions
+├── routes/           # OpenAPI route definitions (thin; no business logic)
 ├── middleware/       # Custom Hono middleware (auth, rbac)
 ├── lib/              # Shared helpers (e.g. JWT verification)
 ├── db/               # Drizzle schema & Turso client
 └── types/            # Types (env bindings, etc.)
 ```
 
-SQL migrations live in **`apps/web/migrations/`** (versioned files; not under `functions/`).
+SQL migrations live in **`migrations/`** at the repository root (versioned files; not under `functions/`).
 
 ### Unit tests (Functions)
 
-- Functions unit tests live in **`apps/web/functions/tests/unit/`**, grouped by area (`auth/`, `lib/`, `middleware/`, `services/`, `app/`).
+- Functions unit tests live in **`functions/tests/unit/`**, grouped by area (`auth/`, `lib/`, `middleware/`, `services/`, `app/`).
 - Run them with Vitest using the configured runner.
 - Add tests for new business logic and security-sensitive helpers (auth, JWT verification, middleware) in that tree.
 
@@ -189,7 +193,7 @@ SQL migrations live in **`apps/web/migrations/`** (versioned files; not under `f
 
 This is an open-source project. All visual identity is controlled from a **single file** that deployers edit once.
 
-### `apps/web/brand.config.ts`
+### `brand.config.ts`
 
 Deployers edit this file to change the app's visual identity:
 
@@ -204,8 +208,8 @@ export default {
 
 ### How to Rebrand
 
-1. **Colors & Name**: Edit `apps/web/brand.config.ts`. The `primary` color is automatically injected into the Tailwind theme via CSS variables in `index.css`.
-2. **Logo**: Replace `apps/web/public/logo.svg` with your own logo asset.
+1. **Colors & Name**: Edit `brand.config.ts` at the repo root. The `primary` color is automatically injected into the Tailwind theme via CSS variables in `index.css`.
+2. **Logo**: Replace `public/logo.svg` with your own logo asset.
 3. **Runtime Access**: Components should import branding info from `@/config/brand` (which re-exports the config) to ensure consistency.
 
 ---
@@ -247,15 +251,15 @@ To ensure TrackMUN remains a premium, professional platform and avoids "AI slop"
 ### Authorization
 
 - Every protected route must check the caller's role **explicitly**.
-- **Identity** is managed by **Supabase Auth**: the client sends **`Authorization: Bearer <access_token>`** on API calls. The Backend verifies the access JWT (`apps/web/functions/api/lib/verify-supabase-jwt.ts`).
-- **RBAC (role and registration status)** for normal access tokens: read from **`app_metadata.trackmun`** on the **verified** JWT payload (`role`, `registrationStatus`, optional `council`), validated in `apps/web/functions/api/lib/jwt-user-claims.ts`. This avoids a per-request Turso read on the hot path. **Turso `users` remains the source of truth**; the Backend calls **`SupabaseAdmin.syncTrackmunJwtMetadata`** after every Turso write that changes role, registration status, council, or relevant profile fields so the next issued access token matches the database.
+- **Identity** is managed by **Supabase Auth**: the client sends **`Authorization: Bearer <access_token>`** on API calls. The Backend verifies the access JWT (`functions/api/lib/verify-supabase-jwt.ts`).
+- **RBAC (role and registration status)** for normal access tokens: read from **`app_metadata.trackmun`** on the **verified** JWT payload (`role`, `registrationStatus`, optional `council`), validated in `functions/api/lib/jwt-user-claims.ts`. This avoids a per-request Turso read on the hot path. **Turso `users` remains the source of truth**; the Backend calls **`SupabaseAdmin.syncTrackmunJwtMetadata`** after every Turso write that changes role, registration status, council, or relevant profile fields so the next issued access token matches the database.
 - **Fallback**: if `app_metadata.trackmun` is missing or invalid (legacy sessions), **`withAuth`** loads the user from Turso by `sub` once per request.
 - **Staleness**: JWT claims are current until the access token expires or is refreshed. Prefer a **short access-token TTL** in Supabase so admin approval or role changes propagate quickly. After admin actions, the SPA should **refresh the session** so the client receives a new JWT.
 - **Registration Status**: New delegates have `registration_status = 'pending'`. They must be approved by admin before accessing full features.
 - Role hierarchy: `admin > chair > oc > delegate`
 - **Admin Provisioning**: Admin users can provision new internal accounts (`oc` and `chair`) via the `AdminController.createUser` method.
 - **Impersonation**: admins receive a short-lived **HMAC-SHA256** JWT (`typ: 'impersonation'`, secret `IMPERSONATION_SECRET`) only for targets whose role is **`oc` or `chair`**. The acting user is always loaded from **Turso** by `actingAs`. Log events in **`impersonation_log`** via `AuthService.logImpersonation`.
-- Required bindings / secrets are declared on **`Bindings`** in `apps/web/functions/api/types/env.ts` (e.g. `SUPABASE_JWT_SECRET`, `SUPABASE_URL`, `IMPERSONATION_SECRET`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `MEDIA`). Optional: `ENVIRONMENT`.
+- Required bindings / secrets are declared on **`Bindings`** in `functions/api/types/env.ts` (e.g. `SUPABASE_URL`, `IMPERSONATION_SECRET`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `MEDIA`, `JWKS_KV`). Optional: `ENVIRONMENT`. Local development uses **`.dev.vars`** at the repo root; see **`.dev.vars.example`** for the key list (never commit real `.dev.vars`).
 - Return `401 Unauthorized` for missing/invalid tokens. Return `403 Forbidden` for insufficient permissions or pending/rejected registration status.
 - **Unified Login**: Use the unified `/login` route for all users, including admins. Do not create separate login routes for distinct roles.
 
@@ -332,7 +336,7 @@ CREATE TABLE delegate_profiles (
 
 ### Migrations
 
-- All schema changes must be written as versioned migration files in `apps/web/migrations/`.
+- All schema changes must be written as versioned migration files in `migrations/` at the repository root.
 - Migration files are append-only. Never modify an already-applied migration.
 - Migration naming: `0001_create_users.sql`, `0002_add_delegate_profiles.sql`.
 - Apply migrations: `pnpm db:generate` then `pnpm db:push` (local) or manual apply (production).
@@ -345,7 +349,8 @@ All database access in the backend uses **Drizzle ORM** for type-safe, composabl
 
 ### Installation
 
-Dependencies are declared in `apps/web/package.json`:
+Application dependencies are declared in the **root** `package.json` (single app package). The workspace package `@trackmun/shared` is under `packages/shared/package.json`:
+
 - `drizzle-orm` — ORM runtime
 - `@libsql/client` — Turso client driver
 - `drizzle-kit` — CLI for migrations and schema management
@@ -353,7 +358,7 @@ Dependencies are declared in `apps/web/package.json`:
 ### File Structure
 
 ```text
-apps/web/functions/api/
+functions/api/
 ├── db/
 │   ├── schema.ts # Table definitions and relations
 │   └── client.ts # Database client initialization (Turso/libsql)
@@ -606,7 +611,8 @@ These patterns are explicitly prohibited. If you encounter them in existing code
 Before submitting any change, verify:
 
 - [ ] TypeScript strict mode passes with no errors
-- [ ] **Unit tests are written for all new business logic and utility functions** (place function tests under `apps/web/functions/tests/unit/`)
+- [ ] **Unit tests are written for all new business logic and utility functions** (place function tests under `functions/tests/unit/`)
+- [ ] **`.dev.vars.example`** lists required local env keys when adding new bindings or secrets
 - [ ] All inputs to API endpoints are validated
 - [ ] Authorization is enforced on every protected route
 - [ ] New database queries are parameterized and paginated

@@ -4,7 +4,7 @@ set -e
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$REPO_ROOT"
 
-rm -rf apps/worker/local.db local.db 2>/dev/null || true
+rm -rf local.db 2>/dev/null || true
 
 if [ ! -d .sqld ] || [ -z "$(ls -A .sqld 2>/dev/null)" ]; then
   mkdir -p .sqld

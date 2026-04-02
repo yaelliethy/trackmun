@@ -18,7 +18,7 @@ should_abort() {
 
 while true; do
   set +e
-  pnpm --filter @trackmun/worker run db:push >"$LOG" 2>&1
+  pnpm run db:push >"$LOG" 2>&1
   code=$?
   set -e
 
