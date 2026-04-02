@@ -1,11 +1,11 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "1f2fc623-45af-4ee6-a01b-c0ec14cf98b3",
+  "id": "38c12a33-6af5-41bf-9aba-512b868c77a9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "accounts": {
-      "name": "accounts",
+    "attendance_periods": {
+      "name": "attendance_periods",
       "columns": {
         "id": {
           "name": "id",
@@ -14,79 +14,23 @@
           "notNull": true,
           "autoincrement": false
         },
-        "user_id": {
-          "name": "user_id",
+        "day_id": {
+          "name": "day_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "account_id": {
-          "name": "account_id",
+        "start_time": {
+          "name": "start_time",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "provider_id": {
-          "name": "provider_id",
+        "end_time": {
+          "name": "end_time",
           "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "access_token": {
-          "name": "access_token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "refresh_token": {
-          "name": "refresh_token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "access_token_expires_at": {
-          "name": "access_token_expires_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "refresh_token_expires_at": {
-          "name": "refresh_token_expires_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "scope": {
-          "name": "scope",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "id_token": {
-          "name": "id_token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "password": {
-          "name": "password",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -96,22 +40,39 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_attendance_periods_day": {
+          "name": "idx_attendance_periods_day",
+          "columns": [
+            "day_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
-        "accounts_user_id_users_id_fk": {
-          "name": "accounts_user_id_users_id_fk",
-          "tableFrom": "accounts",
-          "tableTo": "users",
+        "attendance_periods_day_id_conference_days_id_fk": {
+          "name": "attendance_periods_day_id_conference_days_id_fk",
+          "tableFrom": "attendance_periods",
+          "tableTo": "conference_days",
           "columnsFrom": [
-            "user_id"
+            "day_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -155,7 +116,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 1774358636
+          "default": 1775113111
         }
       },
       "indexes": {
@@ -173,6 +134,14 @@
             "scanned_at"
           ],
           "isUnique": false
+        },
+        "attendance_records_user_id_session_label_unique": {
+          "name": "attendance_records_user_id_session_label_unique",
+          "columns": [
+            "user_id",
+            "session_label"
+          ],
+          "isUnique": true
         }
       },
       "foreignKeys": {
@@ -257,7 +226,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 1774358636
+          "default": 1775113111
         }
       },
       "indexes": {},
@@ -329,7 +298,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 1774358636
+          "default": 1775113111
         }
       },
       "indexes": {
@@ -370,6 +339,160 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "benefits": {
+      "name": "benefits",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "conference_days": {
+      "name": "conference_days",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'Unnamed Day'"
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "councils": {
+      "name": "councils",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "short_name": {
+          "name": "short_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "capacity": {
+          "name": "capacity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        }
+      },
+      "indexes": {
+        "councils_name_unique": {
+          "name": "councils_name_unique",
+          "columns": [
+            "name"
+          ],
+          "isUnique": true
+        },
+        "idx_councils_name": {
+          "name": "idx_councils_name",
+          "columns": [
+            "name"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
@@ -417,7 +540,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 1774358636
+          "default": 1775113111
         }
       },
       "indexes": {
@@ -461,6 +584,102 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
+    "delegate_answers": {
+      "name": "delegate_answers",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "question_id": {
+          "name": "question_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        }
+      },
+      "indexes": {
+        "idx_delegate_answers_user": {
+          "name": "idx_delegate_answers_user",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        },
+        "delegate_answers_user_id_question_id_unique": {
+          "name": "delegate_answers_user_id_question_id_unique",
+          "columns": [
+            "user_id",
+            "question_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "delegate_answers_user_id_users_id_fk": {
+          "name": "delegate_answers_user_id_users_id_fk",
+          "tableFrom": "delegate_answers",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "delegate_answers_question_id_registration_questions_id_fk": {
+          "name": "delegate_answers_question_id_registration_questions_id_fk",
+          "tableFrom": "delegate_answers",
+          "tableTo": "registration_questions",
+          "columnsFrom": [
+            "question_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
     "delegate_profiles": {
       "name": "delegate_profiles",
       "columns": {
@@ -469,6 +688,13 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
+          "autoincrement": false
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "year": {
@@ -492,6 +718,28 @@
           "notNull": false,
           "autoincrement": false
         },
+        "first_choice": {
+          "name": "first_choice",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "second_choice": {
+          "name": "second_choice",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "current_preference_tracker": {
+          "name": "current_preference_tracker",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
         "awards": {
           "name": "awards",
           "type": "text",
@@ -499,9 +747,54 @@
           "notNull": false,
           "autoincrement": false,
           "default": "'[]'"
+        },
+        "deposit_amount": {
+          "name": "deposit_amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "full_amount": {
+          "name": "full_amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "deposit_payment_status": {
+          "name": "deposit_payment_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "full_payment_status": {
+          "name": "full_payment_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "payment_proof_r2_key": {
+          "name": "payment_proof_r2_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "delegate_profiles_identifier_unique": {
+          "name": "delegate_profiles_identifier_unique",
+          "columns": [
+            "identifier"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {
         "delegate_profiles_user_id_users_id_fk": {
           "name": "delegate_profiles_user_id_users_id_fk",
@@ -606,43 +899,6 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "jwkss": {
-      "name": "jwkss",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "public_key": {
-          "name": "public_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "private_key": {
-          "name": "private_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
     "post_likes": {
       "name": "post_likes",
       "columns": {
@@ -666,7 +922,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 1774358636
+          "default": 1775113111
         }
       },
       "indexes": {
@@ -813,7 +1069,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 1774358636
+          "default": 1775113111
         }
       },
       "indexes": {
@@ -887,7 +1143,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 1774358636
+          "default": 1775113111
         },
         "updated_at": {
           "name": "updated_at",
@@ -968,7 +1224,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 1774358636
+          "default": 1775113111
         }
       },
       "indexes": {},
@@ -1027,7 +1283,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 1774358636
+          "default": 1775113111
         }
       },
       "indexes": {
@@ -1064,8 +1320,8 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "sessions": {
-      "name": "sessions",
+    "registration_questions": {
+      "name": "registration_questions",
       "columns": {
         "id": {
           "name": "id",
@@ -1074,44 +1330,175 @@
           "notNull": true,
           "autoincrement": false
         },
-        "user_id": {
-          "name": "user_id",
+        "step_id": {
+          "name": "step_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "token": {
-          "name": "token",
+        "label": {
+          "name": "label",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "expires_at": {
-          "name": "expires_at",
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "options": {
+          "name": "options",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "required": {
+          "name": "required",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "display_order": {
+          "name": "display_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "council_preference_count": {
+          "name": "council_preference_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        }
+      },
+      "indexes": {
+        "idx_req_questions_step": {
+          "name": "idx_req_questions_step",
+          "columns": [
+            "step_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "registration_questions_step_id_registration_steps_id_fk": {
+          "name": "registration_questions_step_id_registration_steps_id_fk",
+          "tableFrom": "registration_questions",
+          "tableTo": "registration_steps",
+          "columnsFrom": [
+            "step_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "registration_steps": {
+      "name": "registration_steps",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
           "autoincrement": false
         },
-        "ip_address": {
-          "name": "ip_address",
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "user_agent": {
-          "name": "user_agent",
-          "type": "text",
+        "order": {
+          "name": "order",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "created_at": {
           "name": "created_at",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "settings": {
+      "name": "settings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -1121,33 +1508,28 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
         }
       },
       "indexes": {
-        "sessions_token_unique": {
-          "name": "sessions_token_unique",
+        "settings_key_unique": {
+          "name": "settings_key_unique",
           "columns": [
-            "token"
+            "key"
           ],
           "isUnique": true
         }
       },
-      "foreignKeys": {
-        "sessions_user_id_users_id_fk": {
-          "name": "sessions_user_id_users_id_fk",
-          "tableFrom": "sessions",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
@@ -1168,6 +1550,20 @@
           "notNull": true,
           "autoincrement": false
         },
+        "first_name": {
+          "name": "first_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_name": {
+          "name": "last_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "name": {
           "name": "name",
           "type": "text",
@@ -1182,6 +1578,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'delegate'"
+        },
+        "registration_status": {
+          "name": "registration_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
         },
         "council": {
           "name": "council",
@@ -1243,59 +1647,15 @@
             "role"
           ],
           "isUnique": false
+        },
+        "idx_registration_status": {
+          "name": "idx_registration_status",
+          "columns": [
+            "registration_status"
+          ],
+          "isUnique": false
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
-    "verifications": {
-      "name": "verifications",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "identifier": {
-          "name": "identifier",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "value": {
-          "name": "value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}

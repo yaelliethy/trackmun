@@ -16,16 +16,16 @@ import { RefreshCw } from "lucide-react"
 import { useQueryClient, useIsFetching } from "@tanstack/react-query"
 
 export const OCLayout: React.FC = () => {
-  const { user, setUser } = useAuthStore()
+  const { user, impersonatedUser, logout } = useAuthStore()
+  // When impersonating, show the impersonated OC member's info in the sidebar.
+  const displayUser = impersonatedUser ?? user
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const isFetching = useIsFetching()
 
-  const handleLogout = () => {
-    localStorage.removeItem("auth_token")
-    localStorage.removeItem("refresh_token")
-    setUser(null)
-    navigate("/login")
+  const handleLogout = async () => {
+    await logout()
+    navigate("/login", { replace: true })
   }
 
   const handleRefresh = () => {
@@ -36,7 +36,7 @@ export const OCLayout: React.FC = () => {
     <div className="flex min-h-svh flex-col bg-background text-foreground">
       <ImpersonationBanner />
       <SidebarProvider className="flex min-h-0 min-w-0 flex-1 flex-row">
-        <OCAppSidebar user={user} onLogout={handleLogout} />
+        <OCAppSidebar user={displayUser} onLogout={handleLogout} />
         <SidebarInset>
           {/* Topbar */}
           <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">

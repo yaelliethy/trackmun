@@ -91,6 +91,12 @@ function SettingsTab({ settings }: { settings: Settings }) {
   const [registrationOpen, setRegistrationOpen] = useState(
     settings?.registration_enabled !== false
   )
+  const [chairsCanReject, setChairsCanReject] = useState(
+    settings?.chairs_can_reject === true
+  )
+  const [chairsCanDefer, setChairsCanDefer] = useState(
+    settings?.chairs_can_defer === true
+  )
   const queryClient = useQueryClient()
 
   React.useEffect(() => {
@@ -99,6 +105,8 @@ function SettingsTab({ settings }: { settings: Settings }) {
       setFull(settings.registration_full_amount?.toString() || "")
       if (settings.payment_proof_timing) setTiming(settings.payment_proof_timing)
       setRegistrationOpen(settings.registration_enabled !== false)
+      setChairsCanReject(settings.chairs_can_reject === true)
+      setChairsCanDefer(settings.chairs_can_defer === true)
     }
   }, [settings])
 
@@ -108,9 +116,12 @@ function SettingsTab({ settings }: { settings: Settings }) {
         registration_deposit_amount: parseInt(deposit, 10) || undefined,
         registration_full_amount: parseInt(full, 10) || undefined,
         payment_proof_timing: timing as "registration" | "after_acceptance",
+        chairs_can_reject: chairsCanReject,
+        chairs_can_defer: chairsCanDefer,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-registration-settings"] })
+      toast.success("Settings saved successfully.")
     },
   })
 
@@ -150,6 +161,40 @@ function SettingsTab({ settings }: { settings: Settings }) {
             disabled={toggleRegistrationMutation.isPending}
             aria-label="Toggle delegate registration"
           />
+        </div>
+
+        <div className="space-y-4 border-t pt-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="chairs-can-reject" className="text-sm font-medium">
+                Chairs can reject delegates
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                If enabled, chairs will see incoming registrations and can reject them directly.
+              </p>
+            </div>
+            <Switch
+              id="chairs-can-reject"
+              checked={chairsCanReject}
+              onCheckedChange={setChairsCanReject}
+            />
+          </div>
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="chairs-can-defer" className="text-sm font-medium">
+                Chairs can defer delegates
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                If enabled, chairs can defer delegates to their next preferred council.
+              </p>
+            </div>
+            <Switch
+              id="chairs-can-defer"
+              checked={chairsCanDefer}
+              onCheckedChange={setChairsCanDefer}
+            />
+          </div>
         </div>
 
         <div className="space-y-4 border-t pt-6">

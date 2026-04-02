@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 
-const API_BASE_URL = '/functions/api';
+const API_BASE_URL = '/api';
 
 class ApiError extends Error {
   constructor(public message: string, public code?: string, public status?: number) {
@@ -9,30 +9,41 @@ class ApiError extends Error {
   }
 }
 
-async function getAuthToken(): Promise<string | null> {
-  // Check for impersonation token in localStorage first
-  const impersonationToken = localStorage.getItem('impersonation_token');
-  if (impersonationToken) return impersonationToken;
+export interface RequestOptions extends RequestInit {
+  /**
+   * When true, the impersonation token in localStorage is ignored and the
+   * real Supabase access token is used instead.  Use this whenever resolving
+   * the *admin's* own identity (e.g. /auth/me inside ProtectedRoute), so the
+   * impersonated role never leaks into route-level auth decisions.
+   */
+  skipImpersonation?: boolean;
+}
 
-  // Supabase access token
+async function getAuthToken(skipImpersonation = false): Promise<string | null> {
+  if (!skipImpersonation) {
+    const impersonationToken = localStorage.getItem('impersonation_token');
+    if (impersonationToken) return impersonationToken;
+  }
+
   const { data: { session } } = await supabase.auth.getSession();
   return session?.access_token ?? null;
 }
 
 export async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestOptions = {}
 ): Promise<T> {
-  const token = await getAuthToken();
-  
-  const headers = new Headers(options.headers);
+  const { skipImpersonation, ...fetchOptions } = options;
+  const token = await getAuthToken(skipImpersonation);
+
+  const headers = new Headers(fetchOptions.headers);
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
   headers.set('Content-Type', 'application/json');
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
+    ...fetchOptions,
     headers,
   });
 
@@ -54,12 +65,12 @@ export async function request<T>(
 }
 
 export const api = {
-  get: <T>(path: string, options?: RequestInit) => request<T>(path, { ...options, method: 'GET' }),
-  post: <T>(path: string, body?: any, options?: RequestInit) => 
+  get: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: 'GET' }),
+  post: <T>(path: string, body?: any, options?: RequestOptions) =>
     request<T>(path, { ...options, method: 'POST', body: JSON.stringify(body) }),
-  patch: <T>(path: string, body?: any, options?: RequestInit) => 
+  patch: <T>(path: string, body?: any, options?: RequestOptions) =>
     request<T>(path, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
-  put: <T>(path: string, body?: any, options?: RequestInit) => 
+  put: <T>(path: string, body?: any, options?: RequestOptions) =>
     request<T>(path, { ...options, method: 'PUT', body: JSON.stringify(body) }),
-  delete: <T>(path: string, options?: RequestInit) => request<T>(path, { ...options, method: 'DELETE' }),
+  delete: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: 'DELETE' }),
 };

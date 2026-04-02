@@ -50,6 +50,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     queryKey: ["public-registration-questions"],
     queryFn: publicRegistrationService.listQuestions,
   })
+  const { data: fullCouncils, isLoading: isLoadingCouncils } = useQuery({
+    queryKey: ["public-registration-full-councils"],
+    queryFn: publicRegistrationService.getFullCouncils,
+  })
 
   const formMethods = useForm<RegisterUser>({
     defaultValues: { answers: {} },
@@ -156,11 +160,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
 
     return rawOptions.map(opt => ({
       value: opt,
-      disabled: usedChoices.includes(opt)
+      disabled: usedChoices.includes(opt) || (fullCouncils || []).includes(opt),
+      isFull: (fullCouncils || []).includes(opt)
     }))
   }
 
-  if (isLoadingSteps || isLoadingQuestions) {
+  if (isLoadingSteps || isLoadingQuestions || isLoadingCouncils) {
     return (
       <Card className="border-border/80 shadow-lg text-center p-12">
         <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
@@ -301,7 +306,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
                              <SelectContent>
                                {options.map((opt: any) => (
                                  <SelectItem key={opt.value} value={opt.value} disabled={opt.disabled}>
-                                   {opt.value} {opt.disabled && '(Already Selected)'}
+                                   {opt.value} {opt.isFull ? '(At Capacity)' : opt.disabled ? '(Already Selected)' : ''}
                                  </SelectItem>
                                ))}
                              </SelectContent>

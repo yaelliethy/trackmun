@@ -1,10 +1,10 @@
 import { api } from './api';
-import { RegistrationStep, RegistrationQuestion, Settings } from '@trackmun/shared';
 
 export const publicRegistrationService = {
-  getSettings: () => api.get<Settings>('/registration/settings'),
-  listSteps: () => api.get<RegistrationStep[]>('/registration/steps'),
-  listQuestions: () => api.get<RegistrationQuestion[]>('/registration/questions'),
-  getPaymentProofUrl: (data: { filename: string, contentType: string, size: number }) =>
-    api.post<{ uploadUrl: string, key: string }>('/registration/payment-proof-url', data),
+  getSettings: () => api.get<any>('/public/registration/settings'),
+  listSteps: () => api.get<any[]>('/public/registration/steps'),
+  listQuestions: () => api.get<any[]>('/public/registration/questions'),
+  getFullCouncils: () => api.get<string[]>('/public/registration/councils/full'),
+  getPaymentProofUrl: (data: any) => api.post<any>('/public/registration/payment-proof', data),
+  getCountries: () => api.get<any[]>('/public/registration/countries'),
 };

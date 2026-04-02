@@ -49,7 +49,7 @@ const navItems = [
 
 export interface AdminAppSidebarProps {
   user: User | null
-  onLogout: () => void
+  onLogout: () => void | Promise<void>
 }
 
 export function AdminAppSidebar({ user, onLogout }: AdminAppSidebarProps) {

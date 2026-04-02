@@ -9,6 +9,7 @@ import brand from "@/config/brand"
 import { AlertCircle, ArrowRight } from "lucide-react"
 import { motion } from "framer-motion"
 import { ModeToggle } from "@/components/mode-toggle"
+import { resolvePostLoginRedirect } from "../../utils/auth-redirect"
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("")
@@ -18,18 +19,11 @@ export const LoginPage: React.FC = () => {
 
   const navigate = useNavigate()
   const location = useLocation()
-  const { setUser } = useAuthStore()
+  const { setUser, stopImpersonation } = useAuthStore()
 
   const fromPath =
     (location.state as { from?: { pathname?: string } } | null)?.from
       ?.pathname ?? null
-  const redirectAfterLogin =
-    fromPath &&
-      fromPath.startsWith("/") &&
-      !fromPath.startsWith("//") &&
-      fromPath !== "/login"
-      ? fromPath
-      : null
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,22 +33,14 @@ export const LoginPage: React.FC = () => {
     try {
       const loginRes = await authService.signIn(email, password)
 
-      // Clear any existing auth data first
-      localStorage.removeItem("impersonation_token")
-      localStorage.removeItem("impersonated_user")
+      // Clear any existing impersonation state (both localStorage and store)
+      stopImpersonation()
 
       setUser(loginRes.user)
 
-      const roleDefault =
-        loginRes.user.role === "oc"
-          ? "/oc"
-          : loginRes.user.role === "admin" || loginRes.user.role === "chair"
-            ? "/admin/"
-            : loginRes.user.role === "delegate"
-              ? "/delegate/dashboard"
-              : "/login"
-
-      navigate(redirectAfterLogin ?? roleDefault, { replace: true })
+      navigate(resolvePostLoginRedirect(fromPath, loginRes.user.role), {
+        replace: true,
+      })
     } catch (err: any) {
       console.error("Login error:", err)
       setError(err.message || "Invalid email or password. Please check your credentials and try again.")

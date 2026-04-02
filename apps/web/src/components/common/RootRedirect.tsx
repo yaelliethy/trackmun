@@ -4,16 +4,23 @@ import { useAuthStore } from "../../hooks/useAuthStore"
 import { api } from "../../services/api"
 import { User } from "@trackmun/shared"
 import { supabase } from "../../lib/supabase"
+import { getDefaultHomeForRole } from "../../utils/auth-redirect"
 
 export const RootRedirect: React.FC = () => {
-  const { user, setUser } = useAuthStore()
+  const { user, setUser, isImpersonating, impersonatedUser } = useAuthStore()
   const [redirectPath, setRedirectPath] = useState<string | null>(null)
 
   useEffect(() => {
     const checkAuthAndRedirect = async () => {
+      // During impersonation, route based on the impersonated user's role
+      if (isImpersonating && impersonatedUser) {
+        setRedirectPath(getDefaultHomeForRole(impersonatedUser.role))
+        return
+      }
+
       // If we already have user in store, use it
       if (user) {
-        setRedirectPath(getRedirectPath(user.role))
+        setRedirectPath(getDefaultHomeForRole(user.role))
         return
       }
 
@@ -25,10 +32,11 @@ export const RootRedirect: React.FC = () => {
           return
         }
 
-        // Try to fetch user data from Worker
-        const userData = await api.get<User>("/auth/me")
+        // Fetch the real admin identity — skip impersonation token so we get the
+        // actual logged-in user, not the impersonated target.
+        const userData = await api.get<User>("/auth/me", { skipImpersonation: true })
         setUser(userData)
-        setRedirectPath(getRedirectPath(userData.role))
+        setRedirectPath(getDefaultHomeForRole(userData.role))
       } catch (err) {
         console.error("Failed to fetch user data during root redirect:", err)
         await supabase.auth.signOut()
@@ -38,7 +46,7 @@ export const RootRedirect: React.FC = () => {
     }
 
     void checkAuthAndRedirect()
-  }, [user, setUser])
+  }, [user, setUser, isImpersonating, impersonatedUser])
 
   // Show loading state while checking
   if (!redirectPath) {
@@ -54,18 +62,4 @@ export const RootRedirect: React.FC = () => {
 
   // Redirect to appropriate page
   return <Navigate to={redirectPath} replace />
-}
-
-function getRedirectPath(role: string): string {
-  switch (role) {
-    case "oc":
-      return "/oc"
-    case "admin":
-    case "chair":
-      return "/admin/delegates"
-    case "delegate":
-      return "/delegate/dashboard"
-    default:
-      return "/login"
-  }
 }

@@ -6,11 +6,11 @@ import { UserFilters, UserFilterValues } from "../../components/admin/UserFilter
 import { UserEditModal } from "../../components/admin/UserEditModal"
 import { UserDeleteModal } from "../../components/admin/UserDeleteModal"
 import { PaymentProofReviewModal } from "../../components/admin/PaymentProofReviewModal"
-import { User, DelegateResponse } from "@trackmun/shared"
+import { User } from "@trackmun/shared"
 import { AdminDataPageLayout } from "../../components/admin/AdminDataPageLayout"
 import { AdminListPagination } from "../../components/admin/AdminListPagination"
 import { adminRegistrationService } from "../../services/registration"
-import { toast } from "sonner"
+
 import {
   Sheet,
   SheetContent,
@@ -19,6 +19,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
+import { Loader2 } from "lucide-react"
 
 const PAGE_SIZE = 20
 
@@ -28,7 +29,8 @@ export const AdminDelegatesPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [deletingUser, setDeletingUser] = useState<User | null>(null)
   const [reviewingPaymentUser, setReviewingPaymentUser] = useState<User | null>(null)
-  const [selectedResponse, setSelectedResponse] = useState<DelegateResponse | null>(null)
+  const [selectedResponseUserId, setSelectedResponseUserId] = useState<string | null>(null)
+  const [selectedResponseUserName, setSelectedResponseUserName] = useState<string>("")
 
   const queryClient = useQueryClient()
 
@@ -42,10 +44,7 @@ export const AdminDelegatesPage: React.FC = () => {
     setPage(1)
   }
 
-  const { data: allResponses } = useQuery({
-    queryKey: ["admin-registration-responses"],
-    queryFn: () => adminRegistrationService.getResponses(),
-  })
+
 
   const updateMutation = useMutation({
     mutationFn: ({
@@ -86,12 +85,8 @@ export const AdminDelegatesPage: React.FC = () => {
   })
 
   const handleViewResponses = (user: User) => {
-    const response = allResponses?.find((r) => r.userId === user.id)
-    if (response) {
-      setSelectedResponse(response)
-    } else {
-      toast.error("No registration responses found for this delegate.")
-    }
+    setSelectedResponseUserId(user.id)
+    setSelectedResponseUserName(user.name)
   }
 
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0
@@ -166,64 +161,83 @@ export const AdminDelegatesPage: React.FC = () => {
       />
 
       <DelegateResponseSheet
-        response={selectedResponse}
-        onClose={() => setSelectedResponse(null)}
+        userId={selectedResponseUserId}
+        userName={selectedResponseUserName}
+        onClose={() => setSelectedResponseUserId(null)}
       />
     </AdminDataPageLayout>
   )
 }
 
 function DelegateResponseSheet({
-  response,
+  userId,
+  userName,
   onClose,
 }: {
-  response: DelegateResponse | null
+  userId: string | null
+  userName: string
   onClose: () => void
 }) {
+  const { data: response, isLoading } = useQuery({
+    queryKey: ["admin-delegate-response", userId],
+    queryFn: () => adminRegistrationService.getResponse(userId!),
+    enabled: !!userId,
+  })
+
   return (
-    <Sheet open={!!response} onOpenChange={(open) => !open && onClose()}>
+    <Sheet open={!!userId} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="sm:max-w-md overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Registration Responses</SheetTitle>
           <SheetDescription>
-            Full answers provided by {response?.name} during registration.
+            Full answers provided by {userName} during registration.
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
-          <div className="grid grid-cols-2 gap-4 text-sm border-b pb-4">
-            <div>
-              <p className="text-muted-foreground">Email</p>
-              <p className="font-medium">{response?.email}</p>
+          {isLoading ? (
+            <div className="py-12 flex justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-            <div>
-              <p className="text-muted-foreground">Status</p>
-              <Badge
-                variant={
-                  response?.registrationStatus === "approved"
-                    ? "success"
-                    : response?.registrationStatus === "rejected"
-                    ? "destructive"
-                    : "secondary"
-                }
-              >
-                {response?.registrationStatus}
-              </Badge>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {response?.answers.map((answer) => (
-              <div key={answer.questionId} className="space-y-1">
-                <p className="text-sm font-medium text-primary">
-                  {answer.questionLabel}
-                </p>
-                <div className="rounded-md bg-muted/30 p-3 text-sm">
-                  {answer.value || <span className="text-muted-foreground italic">No answer provided</span>}
+          ) : !response ? (
+            <p className="text-sm text-muted-foreground italic">No responses found.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4 text-sm border-b pb-4">
+                <div>
+                  <p className="text-muted-foreground">Email</p>
+                  <p className="font-medium">{response.email}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Status</p>
+                  <Badge
+                    variant={
+                      response.registrationStatus === "approved"
+                        ? "success"
+                        : response.registrationStatus === "rejected"
+                        ? "destructive"
+                        : "secondary"
+                    }
+                  >
+                    {response.registrationStatus}
+                  </Badge>
                 </div>
               </div>
-            ))}
-          </div>
+
+              <div className="space-y-4">
+                {response.answers?.map((answer) => (
+                  <div key={answer.questionId} className="space-y-1">
+                    <p className="text-sm font-medium text-primary">
+                      {answer.questionLabel}
+                    </p>
+                    <div className="rounded-md bg-muted/30 p-3 text-sm">
+                      {answer.value || <span className="text-muted-foreground italic">No answer provided</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </SheetContent>
     </Sheet>

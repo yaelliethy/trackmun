@@ -9,7 +9,7 @@ const DEFAULT_LOCAL_AUTH_TOKEN = 'placeholder';
 loadEnv({ path: resolve(process.cwd(), '.dev.vars') });
 
 export default {
-  schema: './src/db/schema.ts',
+  schema: './functions/functions/api/db/schema.ts',
   out: './migrations',
   driver: 'libsql',
   dbCredentials: {

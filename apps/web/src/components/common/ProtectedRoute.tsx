@@ -6,7 +6,6 @@ import { User } from "@trackmun/shared"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import brand from "@/config/brand"
-
 import { supabase } from "../../lib/supabase"
 
 interface ProtectedRouteProps {
@@ -28,14 +27,32 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         return
       }
 
+      /**
+       * Always resolve identity via the real Supabase JWT (skipImpersonation: true).
+       * This guarantees `user` is always the logged-in admin, never the impersonated
+       * target — which is what prevents the admin ProtectedRoute from receiving the
+       * wrong role and bouncing the user to /403 the moment impersonation starts.
+       */
       try {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) {
+          // No real session. If there's a stale impersonation token, clear it.
+          if (localStorage.getItem('impersonation_token')) {
+            useAuthStore.getState().stopImpersonation()
+          }
           setLoading(false)
           return
         }
 
-        const userData = await api.get<User>("/auth/me")
+        const userData = await api.get<User>("/auth/me", { skipImpersonation: true })
+
+        // Double-check the session didn't disappear mid-flight (e.g. logout race).
+        const { data: { session: sessionAfter } } = await supabase.auth.getSession()
+        if (!sessionAfter) {
+          setUser(null)
+          return
+        }
+
         setUser(userData)
       } catch (err) {
         console.error("Failed to fetch user data:", err)
@@ -97,14 +114,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!user) {
-    // Redirect to login, preserving the attempted location
-    return (
-      <Navigate to="/login" state={{ from: location }} replace />
-    )
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
-  if (requiredRole && user && !allowedRoles.includes(user.role)) {
+  if (requiredRole && !allowedRoles.includes(user.role)) {
     return <Navigate to="/403" replace />
   }
 

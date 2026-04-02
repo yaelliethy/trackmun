@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DelegateSearchResult } from "@trackmun/shared"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export const OCAttendancePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("")
@@ -76,17 +77,31 @@ export const OCAttendancePage: React.FC = () => {
           <p className="text-sm text-muted-foreground">Manage delegate attendance for the current session.</p>
         </div>
 
-        <Card className="shrink-0 border-primary/20 bg-primary/5">
-          <CardContent className="flex items-center gap-3 p-3">
-            <div className={`size-2.5 rounded-full ${activePeriod ? "bg-green-500 animate-pulse" : "bg-muted-foreground/30"}`} />
-            <div className="grid gap-0.5 leading-none">
-              <span className="text-[11px] font-semibold uppercase tracking-caps text-muted-foreground">
-                Current Session
-              </span>
-              <span className="text-sm font-medium">
-                {isLoadingPeriod ? "Checking..." : activePeriod ? activePeriod.sessionLabel : "No Active Period"}
-              </span>
-            </div>
+        <Card className="min-w-[min(100%,220px)] shrink-0 border-primary/20 bg-primary/5">
+          <CardContent className="flex min-h-[60px] items-center gap-3 p-3">
+            {isLoadingPeriod ? (
+              <>
+                <Skeleton className="size-2.5 shrink-0 rounded-full" />
+                <div className="grid min-w-0 flex-1 gap-1.5">
+                  <Skeleton className="h-3 w-28 max-w-full" />
+                  <Skeleton className="h-4 w-44 max-w-full" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div
+                  className={`size-2.5 shrink-0 rounded-full ${activePeriod ? "bg-green-500 animate-pulse" : "bg-muted-foreground/30"}`}
+                />
+                <div className="grid min-w-0 gap-0.5 leading-none">
+                  <span className="text-[11px] font-semibold uppercase tracking-caps text-muted-foreground">
+                    Current Session
+                  </span>
+                  <span className="text-sm font-medium">
+                    {activePeriod ? activePeriod.sessionLabel : "No Active Period"}
+                  </span>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -146,7 +161,7 @@ export const OCAttendancePage: React.FC = () => {
                         <Button
                           className="w-full h-9 gap-2"
                           size="sm"
-                          disabled={!activePeriod || recordAttendance.isPending}
+                          disabled={isLoadingPeriod || !activePeriod || recordAttendance.isPending}
                           onClick={() => recordAttendance.mutate(delegate.userId)}
                         >
                           {recordAttendance.isPending && recordAttendance.variables === delegate.userId ? (
@@ -180,7 +195,12 @@ export const OCAttendancePage: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="scanner" className="m-0 flex flex-col items-center justify-center space-y-6 pt-4">
-            {!activePeriod && !isLoadingPeriod ? (
+            {isLoadingPeriod ? (
+              <div className="flex flex-col items-center gap-3 py-12">
+                <Loader2 className="size-10 animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Checking current session…</p>
+              </div>
+            ) : !activePeriod ? (
               <div className="max-w-sm text-center space-y-3 py-12">
                 <div className="mx-auto size-12 rounded-full bg-destructive/10 flex items-center justify-center">
                   <AlertCircle className="size-6 text-destructive" />

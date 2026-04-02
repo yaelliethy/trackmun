@@ -11,7 +11,7 @@
     "paths": {
       "@/*": ["src/*"],
       "@trackmun/shared": ["../../packages/shared/src/index.ts"],
-      "#src/*": ["functions/functions/api/*"]
+      "#src/*": ["functions/api/*"]
     },
 
     /* Bundler mode */

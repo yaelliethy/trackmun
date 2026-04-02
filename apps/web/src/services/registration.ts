@@ -16,4 +16,5 @@ export const adminRegistrationService = {
   deleteQuestion: (id: string) => api.delete<null>(`/admin/registration/questions/${id}`),
 
   getResponses: () => api.get<DelegateResponse[]>('/admin/registration/responses'),
+  getResponse: (userId: string) => api.get<DelegateResponse>(`/admin/registration/responses/${userId}`),
 };

@@ -16,16 +16,14 @@ import { RefreshCw } from "lucide-react"
 import { useQueryClient, useIsFetching } from "@tanstack/react-query"
 
 export const AdminLayout: React.FC = () => {
-  const { user, setUser } = useAuthStore()
+  const { user, logout } = useAuthStore()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const isFetching = useIsFetching()
 
-  const handleLogout = () => {
-    localStorage.removeItem("auth_token")
-    localStorage.removeItem("refresh_token")
-    setUser(null)
-    navigate("/login")
+  const handleLogout = async () => {
+    await logout()
+    navigate("/login", { replace: true })
   }
 
   const handleRefresh = () => {

@@ -68,7 +68,7 @@ export const AdminChairsPage: React.FC = () => {
     try {
       const { token } = await chairsService.impersonate(user.id)
       startImpersonation(token, user)
-      navigate("/admin/delegates", { replace: true })
+      navigate("/chairs/assigned", { replace: true })
     } catch (err) {
       console.error("Impersonation failed:", err)
     }

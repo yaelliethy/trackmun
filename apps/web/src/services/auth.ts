@@ -1,6 +1,7 @@
 import { api } from './api';
 import { User, RegisterUser } from '@trackmun/shared';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../hooks/useAuthStore';
 
 export interface RegisterResponse {
   user: User;
@@ -31,10 +32,7 @@ export const authService = {
   },
 
   signOut: async () => {
-    localStorage.removeItem("impersonation_token");
-    localStorage.removeItem("impersonated_user");
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    await useAuthStore.getState().logout();
     return null;
   },
 

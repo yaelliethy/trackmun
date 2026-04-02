@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { Bindings } from '#src/types/env';
 
 describe('OpenAPI & Swagger UI', () => {
@@ -12,14 +12,13 @@ describe('OpenAPI & Swagger UI', () => {
     SUPABASE_URL: 'https://test.supabase.co',
     SUPABASE_ANON_KEY: 'test-anon-key',
     SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
-    SUPABASE_JWT_SECRET: 'test-jwt-secret-at-least-32-chars-long',
     FRONTEND_URL: 'http://localhost:5173',
     IMPERSONATION_SECRET: 'test-impersonation-secret-32chars-min',
-  });
+  } as any);
 
-  it('serves OpenAPI documentation at /doc', async () => {
+  it('serves OpenAPI documentation at /api/doc', async () => {
     const { default: app } = await import('#src/index');
-    const res = await app.request('http://localhost/doc', {}, testBindings());
+    const res = await app.request('http://localhost/api/doc', {}, testBindings());
     expect(res.status).toBe(200);
     const body = (await res.json()) as { openapi?: string; info?: { title?: string } };
     expect(body).toHaveProperty('openapi');
@@ -27,9 +26,9 @@ describe('OpenAPI & Swagger UI', () => {
     expect(body.info?.title).toBe('TrackMUN API');
   });
 
-  it('serves Swagger UI at /docs', async () => {
+  it('serves Swagger UI at /api/docs', async () => {
     const { default: app } = await import('#src/index');
-    const res = await app.request('http://localhost/docs', {}, testBindings());
+    const res = await app.request('http://localhost/api/docs', {}, testBindings());
     expect(res.status).toBe(200);
     const text = await res.text();
     expect(text.toLowerCase()).toMatch(/swagger/);

@@ -37,7 +37,7 @@ const navItems = [
 
 export interface OCAppSidebarProps {
   user: User | null
-  onLogout: () => void
+  onLogout: () => void | Promise<void>
 }
 
 export function OCAppSidebar({ user, onLogout }: OCAppSidebarProps) {

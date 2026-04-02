@@ -1,4 +1,5 @@
 import React from "react"
+import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "../../hooks/useAuthStore"
 import { Button } from "@/components/ui/button"
 import { UserX } from "lucide-react"
@@ -6,6 +7,7 @@ import { UserX } from "lucide-react"
 export const ImpersonationBanner: React.FC = () => {
   const { isImpersonating, impersonatedUser, stopImpersonation } =
     useAuthStore()
+  const navigate = useNavigate()
 
   if (!isImpersonating || !impersonatedUser) return null
 
@@ -32,7 +34,10 @@ export const ImpersonationBanner: React.FC = () => {
         <Button
           size="sm"
           variant="outline"
-          onClick={stopImpersonation}
+          onClick={() => {
+            stopImpersonation()
+            navigate("/admin", { replace: true })
+          }}
           className="shrink-0 border-warning/40 bg-background/80 font-semibold text-warning-foreground hover:bg-warning/15 hover:text-warning-foreground"
         >
           Stop impersonation

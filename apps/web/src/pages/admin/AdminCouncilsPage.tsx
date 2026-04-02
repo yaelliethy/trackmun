@@ -27,10 +27,12 @@ export const AdminCouncilsPage: React.FC = () => {
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState("")
   const [newShortName, setNewShortName] = useState("")
+  const [newCapacity, setNewCapacity] = useState("")
   
   const [editing, setEditing] = useState<Council | null>(null)
   const [editName, setEditName] = useState("")
   const [editShortName, setEditShortName] = useState("")
+  const [editCapacity, setEditCapacity] = useState("")
   
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -42,19 +44,20 @@ export const AdminCouncilsPage: React.FC = () => {
   })
 
   const createMutation = useMutation({
-    mutationFn: ({ name, shortName }: { name: string; shortName: string }) => 
-      councilsService.create(name, shortName),
+    mutationFn: ({ name, shortName, capacity }: { name: string; shortName: string, capacity?: number | null }) => 
+      councilsService.create(name, shortName, capacity),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-councils"] })
       setCreating(false)
       setNewName("")
       setNewShortName("")
+      setNewCapacity("")
     },
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, name, shortName }: { id: string; name: string; shortName: string }) =>
-      councilsService.update(id, name, shortName),
+    mutationFn: ({ id, name, shortName, capacity }: { id: string; name: string; shortName: string, capacity?: number | null }) =>
+      councilsService.update(id, name, shortName, capacity),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-councils"] })
       setEditing(null)
@@ -91,6 +94,9 @@ export const AdminCouncilsPage: React.FC = () => {
               <TableHead className="text-[11px] font-semibold tracking-caps text-muted-foreground">
                 Short Name
               </TableHead>
+              <TableHead className="text-[11px] font-semibold tracking-caps text-muted-foreground">
+                Capacity
+              </TableHead>
               <TableHead className="w-[120px] pr-6 text-right text-[11px] font-semibold tracking-caps text-muted-foreground">
                 Actions
               </TableHead>
@@ -99,13 +105,13 @@ export const AdminCouncilsPage: React.FC = () => {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                   Loading councils…
                 </TableCell>
               </TableRow>
             ) : councils.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                   No councils yet. Add one to use them in user assignments.
                 </TableCell>
               </TableRow>
@@ -118,25 +124,34 @@ export const AdminCouncilsPage: React.FC = () => {
                       {c.shortName}
                     </code>
                   </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-foreground/80">{c.capacity ? c.capacity : '∞'}</span>
+                  </TableCell>
                   <TableCell className="pr-6 text-right">
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          aria-label={`Edit ${c.name}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive/70 hover:bg-destructive/10"
-                          onClick={() => setDeletingId(c.id)}
-                          aria-label={`Delete ${c.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
+                      onClick={() => {
+                        setEditing(c)
+                        setEditName(c.name)
+                        setEditShortName(c.shortName || "")
+                        setEditCapacity(c.capacity ? String(c.capacity) : "")
+                      }}
+                      aria-label={`Edit ${c.name}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive/70 hover:bg-destructive/10"
+                      onClick={() => setDeletingId(c.id)}
+                      aria-label={`Delete ${c.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -170,13 +185,24 @@ export const AdminCouncilsPage: React.FC = () => {
                     className="h-10 font-mono"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="council-capacity">Capacity</Label>
+                  <Input
+                    id="council-capacity"
+                    value={newCapacity}
+                    onChange={(e) => setNewCapacity(e.target.value)}
+                    placeholder="e.g. 50 (leave blank for no limit)"
+                    type="number"
+                    className="h-10"
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setCreating(false)}>
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => createMutation.mutate({ name: newName.trim(), shortName: newShortName.trim() })}
+                  onClick={() => createMutation.mutate({ name: newName.trim(), shortName: newShortName.trim(), capacity: newCapacity ? parseInt(newCapacity, 10) : null })}
                   disabled={!newName.trim() || !newShortName.trim() || createMutation.isPending}
                 >
                   {createMutation.isPending ? "Saving…" : "Create"}
@@ -212,6 +238,17 @@ export const AdminCouncilsPage: React.FC = () => {
                     className="h-10 font-mono"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="council-edit-capacity">Capacity</Label>
+                  <Input
+                    id="council-edit-capacity"
+                    value={editCapacity}
+                    onChange={(e) => setEditCapacity(e.target.value)}
+                    className="h-10"
+                    type="number"
+                    placeholder="e.g. 50 (leave blank for no limit)"
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setEditing(null)}>
@@ -224,6 +261,7 @@ export const AdminCouncilsPage: React.FC = () => {
                         id: editing.id,
                         name: editName.trim(),
                         shortName: editShortName.trim(),
+                        capacity: editCapacity ? parseInt(editCapacity, 10) : null,
                       })
                     }
                   }}

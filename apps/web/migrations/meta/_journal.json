@@ -5,50 +5,8 @@
     {
       "idx": 0,
       "version": "5",
-      "when": 1774358636634,
-      "tag": "0000_adorable_gertrude_yorkes",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1774441711342,
-      "tag": "0001_flat_killer_shrike",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1774443591934,
-      "tag": "0002_fast_lucky_pierre",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "5",
-      "when": 1774772717562,
-      "tag": "0003_sturdy_thundra",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "5",
-      "when": 1774777544453,
-      "tag": "0004_wet_richard_fisk",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "5",
-      "when": 1774800000000,
-      "tag": "0005_create_councils",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "5",
-      "when": 1774800000001,
-      "tag": "0006_council_preference_count",
+      "when": 1775113111188,
+      "tag": "0000_yielding_dust",
       "breakpoints": true
     }
   ]
