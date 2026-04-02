@@ -80,7 +80,6 @@ export const AdminDelegatesPage: React.FC = () => {
       payload[field] = status
       await delegatesService.updatePaymentStatus(id, payload)
       await queryClient.refetchQueries({ queryKey: ["delegates"] })
-      await queryClient.refetchQueries({ queryKey: ["delegate-profile"] })
     },
   })
 
@@ -122,9 +121,9 @@ export const AdminDelegatesPage: React.FC = () => {
         paymentPending={
           paymentMutation.isPending && paymentMutation.variables
             ? {
-                userId: paymentMutation.variables.id,
-                field: paymentMutation.variables.field,
-              }
+              userId: paymentMutation.variables.id,
+              field: paymentMutation.variables.field,
+            }
             : null
         }
         onTogglePaymentStatus={(user, field, currentStatus) => {
@@ -215,8 +214,8 @@ function DelegateResponseSheet({
                       response.registrationStatus === "approved"
                         ? "success"
                         : response.registrationStatus === "rejected"
-                        ? "destructive"
-                        : "secondary"
+                          ? "destructive"
+                          : "secondary"
                     }
                   >
                     {response.registrationStatus}

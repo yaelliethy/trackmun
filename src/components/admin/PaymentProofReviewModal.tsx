@@ -48,7 +48,6 @@ export function PaymentProofReviewModal({
       payload[field] = status
       await delegatesService.updatePaymentStatus(id, payload)
       await queryClient.refetchQueries({ queryKey: ["delegates"] })
-      await queryClient.refetchQueries({ queryKey: ["delegate-profile"] })
     },
   })
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { User } from '@trackmun/shared';
 import { supabase } from '../lib/supabase';
+import { queryClient } from '../lib/query-client';
 
 interface AuthState {
   user: User | null;
@@ -90,6 +91,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     get().stopImpersonation();
     await supabase.auth.signOut();
+    queryClient.clear();
     // Beat races where ProtectedRoute resolved /auth/me while the session was winding down.
     set({ user: null, isImpersonating: false, impersonatedUser: null, isLoading: false });
   },
