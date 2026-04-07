@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const UserRoleSchema = z.enum(['delegate', 'oc', 'chair', 'admin']);
+export const UserRoleSchema = z.enum(['delegate', 'oc', 'chair', 'admin', 'press']);
 export type UserRole = z.infer<typeof UserRoleSchema>;
 
 export const UserSchema = z.object({
@@ -12,6 +12,7 @@ export const UserSchema = z.object({
   role: UserRoleSchema,
   registrationStatus: z.enum(['pending', 'approved', 'rejected']).optional().default('pending'),
   council: z.string().optional().nullable(),
+  chairTitle: z.string().optional().nullable(),
   created_at: z.number(),
 
   // Delegate specific payment tracking fields
@@ -41,6 +42,7 @@ export const UpdateUserSchema = z.object({
   name: z.string().min(1).optional(),
   council: z.string().nullable().optional(),
   role: UserRoleSchema.optional(),
+  chairTitle: z.string().nullable().optional(),
 });
 
 export const BenefitSchema = z.object({
@@ -57,6 +59,7 @@ export const CouncilSchema = z.object({
   name: z.string().min(1),
   shortName: z.string().nullable().optional(),
   capacity: z.number().int().optional(),
+  isPress: z.boolean().optional().default(false),
   createdAt: z.number().optional(),
   updatedAt: z.number().optional(),
 });
@@ -202,6 +205,77 @@ export const DelegateResponseSchema = z.object({
   })),
 });
 export type DelegateResponse = z.infer<typeof DelegateResponseSchema>;
+
+// Press / Feed
+export const PostMediaSchema = z.object({
+  id: z.string(),
+  mediaType: z.enum(['image', 'video']),
+  r2Key: z.string(),
+  displayOrder: z.number().int(),
+});
+export type PostMedia = z.infer<typeof PostMediaSchema>;
+
+export const PostSchema = z.object({
+  id: z.string(),
+  body: z.string(),
+  createdAt: z.number().int(),
+  updatedAt: z.number().int().nullable(),
+  authorId: z.string(),
+  authorName: z.string(),
+  authorRole: UserRoleSchema,
+  likesCount: z.number().int(),
+  replyCount: z.number().int(),
+  likedByCurrentUser: z.boolean(),
+  media: z.array(PostMediaSchema),
+});
+export type Post = z.infer<typeof PostSchema>;
+
+export const ReplySchema = z.object({
+  id: z.string(),
+  postId: z.string(),
+  body: z.string(),
+  createdAt: z.number().int(),
+  authorId: z.string(),
+  authorName: z.string(),
+  authorRole: UserRoleSchema,
+});
+export type Reply = z.infer<typeof ReplySchema>;
+
+export const FeedResponseSchema = z.object({
+  posts: z.array(PostSchema),
+  nextCursor: z.number().int().nullable(),
+});
+export type FeedResponse = z.infer<typeof FeedResponseSchema>;
+
+export const CreatePostSchema = z.object({
+  body: z.string().min(1).max(280),
+  mediaKeys: z.array(z.string()).max(2).default([]),
+});
+export type CreatePost = z.infer<typeof CreatePostSchema>;
+
+export const CreateReplySchema = z.object({
+  body: z.string().min(1).max(280),
+});
+export type CreateReply = z.infer<typeof CreateReplySchema>;
+
+export const UploadUrlRequestSchema = z.object({
+  filename: z.string(),
+  mediaType: z.enum(['image', 'video']),
+  contentType: z.string(),
+});
+export type UploadUrlRequest = z.infer<typeof UploadUrlRequestSchema>;
+
+export const UploadUrlResponseSchema = z.object({
+  uploadUrl: z.string(),
+  r2Key: z.string(),
+});
+export type UploadUrlResponse = z.infer<typeof UploadUrlResponseSchema>;
+
+export const LikeResponseSchema = z.object({
+  likedByCurrentUser: z.boolean(),
+  likesCount: z.number().int(),
+});
+export type LikeResponse = z.infer<typeof LikeResponseSchema>;
 
 export function getCountriesList() {
   return [

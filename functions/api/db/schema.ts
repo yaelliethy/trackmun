@@ -17,7 +17,8 @@ export const users = sqliteTable(
     firstName: text('first_name'),
     lastName: text('last_name'),
     name: text('name').notNull(), // Computed: firstName + lastName
-    role: text('role', { enum: ['delegate', 'oc', 'chair', 'admin'] }).notNull().default('delegate'),
+    chairTitle: text('chair_title'),
+    role: text('role', { enum: ['delegate', 'oc', 'chair', 'admin', 'press'] }).notNull().default('delegate'),
     registrationStatus: text('registration_status', { enum: ['pending', 'approved', 'rejected'] }).notNull().default('pending'),
     council: text('council'),
     emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
@@ -74,6 +75,7 @@ export const councils = sqliteTable(
     name: text('name').notNull().unique(),
     shortName: text('short_name'), // e.g. 'SC', 'GA' — used in delegate identifiers
     capacity: integer('capacity'),
+    isPress: integer('is_press', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   },

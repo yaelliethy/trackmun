@@ -38,7 +38,7 @@ routes.openapi(
     request: {
       body: {
         content: {
-          'application/json': { schema: z.object({ name: z.string().min(1), shortName: z.string().optional(), capacity: z.number().optional() }) },
+          'application/json': { schema: z.object({ name: z.string().min(1), shortName: z.string().optional(), capacity: z.number().optional(), isPress: z.boolean().optional() }) },
         },
       },
     },
@@ -65,7 +65,7 @@ routes.openapi(
       params: z.object({ id: z.string() }),
       body: {
         content: {
-          'application/json': { schema: z.object({ name: z.string().min(1), shortName: z.string().optional(), capacity: z.number().optional() }) },
+          'application/json': { schema: z.object({ name: z.string().min(1), shortName: z.string().optional(), capacity: z.number().optional(), isPress: z.boolean().optional() }) },
         },
       },
     },

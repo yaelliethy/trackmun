@@ -93,6 +93,7 @@ export class AdminService {
         role: user.role as UserRole,
         registrationStatus: user.registrationStatus as "pending" | "approved" | "rejected",
         council: user.council || undefined,
+        chairTitle: user.chairTitle || undefined,
         created_at:
           user.createdAt instanceof Date ? user.createdAt.getTime() : user.createdAt,
         depositAmount: profile?.depositAmount ?? undefined,
@@ -111,6 +112,7 @@ export class AdminService {
     if (input.name !== undefined) updates.name = input.name;
     if (input.council !== undefined) updates.council = input.council;
     if (input.role !== undefined) updates.role = input.role;
+    if (input.chairTitle !== undefined) updates.chairTitle = input.chairTitle;
     // @ts-ignore - input might have emailVerified if we extend the type or pass it manually
     if (input.emailVerified !== undefined) updates.emailVerified = input.emailVerified;
     // @ts-ignore - registrationStatus is an extended field passed from registration controller
@@ -347,6 +349,7 @@ export class AdminService {
       role: user.role as UserRole,
       registrationStatus: user.registrationStatus as "pending" | "approved" | "rejected",
       council: user.council || undefined,
+      chairTitle: user.chairTitle || undefined,
       created_at:
         user.createdAt instanceof Date ? user.createdAt.getTime() : user.createdAt,
       depositAmount: profile?.depositAmount ?? undefined,

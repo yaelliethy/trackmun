@@ -21,6 +21,7 @@ import councilsRoutes from './routes/admin/councils';
 import publicRegistrationRoutes from './routes/registration';
 import uploadRoutes from './routes/upload';
 import chairsRoutes from './routes/chairs';
+import pressRoutes from './routes/press/index';
 
 const app = new OpenAPIHono<{ Bindings: Bindings; Variables: AuthContext }>().basePath('/api');
 
@@ -182,6 +183,7 @@ app.route('/registration', publicRegistrationRoutes);
 app.route('/upload', uploadRoutes);
 app.route('/oc', ocMemberRoutes);
 app.route('/chairs', chairsRoutes);
+app.route('/press', pressRoutes);
 
 export { app };
 export const onRequest = handle(app);

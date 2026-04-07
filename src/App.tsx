@@ -35,6 +35,12 @@ import { OCLayout } from './components/oc/OCLayout'
 import { OCAttendancePage } from './pages/oc/OCAttendancePage'
 import { OCBenefitsPage } from './pages/oc/OCBenefitsPage'
 
+// Press Pages
+import { PressLayout } from './components/press/PressLayout'
+import { FeedPage } from './pages/press/FeedPage'
+import { SearchPage } from './pages/press/SearchPage'
+import { UserProfilePage } from './pages/press/UserProfilePage'
+
 // Protected Route wrappers
 import { ProtectedRoute } from './components/common/ProtectedRoute'
 
@@ -114,6 +120,19 @@ const router = createBrowserRouter([
           { index: true, element: <Navigate to="attendance" replace /> },
           { path: 'attendance', element: <OCAttendancePage /> },
           { path: 'benefits', element: <OCBenefitsPage /> },
+        ],
+      },
+      {
+        path: 'feed',
+        element: (
+          <ProtectedRoute requiredRole={['delegate', 'oc', 'chair', 'admin', 'press']}>
+            <PressLayout />
+          </ProtectedRoute>
+        ),
+        children: [
+          { index: true, element: <FeedPage /> },
+          { path: 'search', element: <SearchPage /> },
+          { path: 'users/:userId', element: <UserProfilePage /> },
         ],
       },
       {

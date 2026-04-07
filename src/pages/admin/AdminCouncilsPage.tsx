@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import type { Council } from "@trackmun/shared"
 
 export const AdminCouncilsPage: React.FC = () => {
@@ -28,12 +29,14 @@ export const AdminCouncilsPage: React.FC = () => {
   const [newName, setNewName] = useState("")
   const [newShortName, setNewShortName] = useState("")
   const [newCapacity, setNewCapacity] = useState("")
-  
+  const [newIsPress, setNewIsPress] = useState(false)
+
   const [editing, setEditing] = useState<Council | null>(null)
   const [editName, setEditName] = useState("")
   const [editShortName, setEditShortName] = useState("")
   const [editCapacity, setEditCapacity] = useState("")
-  
+  const [editIsPress, setEditIsPress] = useState(false)
+
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const queryClient = useQueryClient()
@@ -44,20 +47,21 @@ export const AdminCouncilsPage: React.FC = () => {
   })
 
   const createMutation = useMutation({
-    mutationFn: ({ name, shortName, capacity }: { name: string; shortName: string, capacity?: number | null }) => 
-      councilsService.create(name, shortName, capacity),
+    mutationFn: ({ name, shortName, capacity, isPress }: { name: string; shortName: string, capacity?: number | null, isPress?: boolean }) =>
+      councilsService.create(name, shortName, capacity, isPress),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-councils"] })
       setCreating(false)
       setNewName("")
       setNewShortName("")
       setNewCapacity("")
+      setNewIsPress(false)
     },
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, name, shortName, capacity }: { id: string; name: string; shortName: string, capacity?: number | null }) =>
-      councilsService.update(id, name, shortName, capacity),
+    mutationFn: ({ id, name, shortName, capacity, isPress }: { id: string; name: string; shortName: string, capacity?: number | null, isPress?: boolean }) =>
+      councilsService.update(id, name, shortName, capacity, isPress),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-councils"] })
       setEditing(null)
@@ -97,6 +101,9 @@ export const AdminCouncilsPage: React.FC = () => {
               <TableHead className="text-[11px] font-semibold tracking-caps text-muted-foreground">
                 Capacity
               </TableHead>
+              <TableHead className="text-[11px] font-semibold tracking-caps text-muted-foreground">
+                Flags
+              </TableHead>
               <TableHead className="w-[120px] pr-6 text-right text-[11px] font-semibold tracking-caps text-muted-foreground">
                 Actions
               </TableHead>
@@ -105,13 +112,13 @@ export const AdminCouncilsPage: React.FC = () => {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                   Loading councils…
                 </TableCell>
               </TableRow>
             ) : councils.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                   No councils yet. Add one to use them in user assignments.
                 </TableCell>
               </TableRow>
@@ -127,6 +134,13 @@ export const AdminCouncilsPage: React.FC = () => {
                   <TableCell>
                     <span className="text-sm text-foreground/80">{c.capacity ? c.capacity : '∞'}</span>
                   </TableCell>
+                  <TableCell>
+                    {c.isPress && (
+                      <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+                        Press
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="pr-6 text-right">
                     <Button
                       variant="ghost"
@@ -137,6 +151,7 @@ export const AdminCouncilsPage: React.FC = () => {
                         setEditName(c.name)
                         setEditShortName(c.shortName || "")
                         setEditCapacity(c.capacity ? String(c.capacity) : "")
+                        setEditIsPress(c.isPress || false)
                       }}
                       aria-label={`Edit ${c.name}`}
                     >
@@ -196,13 +211,21 @@ export const AdminCouncilsPage: React.FC = () => {
                     className="h-10"
                   />
                 </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="council-is-press"
+                    checked={newIsPress}
+                    onCheckedChange={(checked) => setNewIsPress(checked as boolean)}
+                  />
+                  <Label htmlFor="council-is-press">Press council</Label>
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setCreating(false)}>
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => createMutation.mutate({ name: newName.trim(), shortName: newShortName.trim(), capacity: newCapacity ? parseInt(newCapacity, 10) : null })}
+                  onClick={() => createMutation.mutate({ name: newName.trim(), shortName: newShortName.trim(), capacity: newCapacity ? parseInt(newCapacity, 10) : null, isPress: newIsPress })}
                   disabled={!newName.trim() || !newShortName.trim() || createMutation.isPending}
                 >
                   {createMutation.isPending ? "Saving…" : "Create"}
@@ -249,6 +272,14 @@ export const AdminCouncilsPage: React.FC = () => {
                     placeholder="e.g. 50 (leave blank for no limit)"
                   />
                 </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="council-edit-is-press"
+                    checked={editIsPress}
+                    onCheckedChange={(checked) => setEditIsPress(checked as boolean)}
+                  />
+                  <Label htmlFor="council-edit-is-press">Press council</Label>
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setEditing(null)}>
@@ -262,6 +293,7 @@ export const AdminCouncilsPage: React.FC = () => {
                         name: editName.trim(),
                         shortName: editShortName.trim(),
                         capacity: editCapacity ? parseInt(editCapacity, 10) : null,
+                        isPress: editIsPress,
                       })
                     }
                   }}

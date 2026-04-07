@@ -13,6 +13,7 @@ export class CouncilsService {
       name: r.name,
       shortName: r.shortName ?? null,
       capacity: r.capacity ?? undefined,
+      isPress: r.isPress,
       createdAt:
         r.createdAt instanceof Date ? r.createdAt.getTime() : r.createdAt,
       updatedAt:
@@ -20,7 +21,7 @@ export class CouncilsService {
     }));
   }
 
-  async create(name: string, shortName?: string, capacity?: number): Promise<Council> {
+  async create(name: string, shortName?: string, capacity?: number, isPress?: boolean): Promise<Council> {
     const trimmed = name.trim();
     if (!trimmed) {
       throw new Error('Council name is required');
@@ -34,6 +35,7 @@ export class CouncilsService {
         name: trimmed,
         shortName: shortName?.trim().toUpperCase() ?? null,
         capacity: capacity ?? null,
+        isPress: isPress ?? false,
         createdAt: now,
         updatedAt: now,
       })
@@ -43,12 +45,13 @@ export class CouncilsService {
       name: trimmed,
       shortName: shortName?.trim().toUpperCase() ?? null,
       capacity: capacity ?? undefined,
+      isPress: isPress ?? false,
       createdAt: now.getTime(),
       updatedAt: now.getTime(),
     };
   }
 
-  async update(id: string, name: string, shortName?: string, capacity?: number): Promise<Council | null> {
+  async update(id: string, name: string, shortName?: string, capacity?: number, isPress?: boolean): Promise<Council | null> {
     const trimmed = name.trim();
     if (!trimmed) {
       throw new Error('Council name is required');
@@ -56,11 +59,12 @@ export class CouncilsService {
     const now = new Date();
     await this.db
       .update(councils)
-      .set({ 
-        name: trimmed, 
-        shortName: shortName?.trim().toUpperCase() ?? undefined, 
+      .set({
+        name: trimmed,
+        shortName: shortName?.trim().toUpperCase() ?? undefined,
         capacity: capacity ?? null,
-        updatedAt: now 
+        isPress: isPress ?? false,
+        updatedAt: now
       })
       .where(eq(councils.id, id))
       .run();
@@ -71,6 +75,7 @@ export class CouncilsService {
       name: row.name,
       shortName: row.shortName ?? null,
       capacity: row.capacity ?? undefined,
+      isPress: row.isPress,
       createdAt:
         row.createdAt instanceof Date ? row.createdAt.getTime() : row.createdAt,
       updatedAt:

@@ -30,7 +30,7 @@ interface UserEditModalProps {
   onClose: () => void
   onSave: (
     id: string,
-    data: { name: string; council?: string | null }
+    data: { name: string; council?: string | null; chairTitle?: string | null }
   ) => Promise<void>
 }
 
@@ -42,10 +42,12 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 }) => {
   const [name, setName] = useState("")
   const [council, setCouncil] = useState("")
+  const [chairTitle, setChairTitle] = useState("")
   const [loading, setLoading] = useState(false)
 
   const showCouncilSelect =
     user?.role === "delegate" || user?.role === "chair"
+  const showChairTitle = user?.role === "chair"
 
   const { data: councilList = [], isLoading: councilsLoading } = useQuery({
     queryKey: ["admin-councils"],
@@ -57,6 +59,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
     if (user) {
       setName(user.name)
       setCouncil(user.council?.trim() ? user.council : "")
+      setChairTitle(user.chairTitle?.trim() ? user.chairTitle : "")
     }
   }, [user])
 
@@ -70,6 +73,11 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
           ? council.trim() === ""
             ? null
             : council.trim()
+          : null,
+        chairTitle: showChairTitle
+          ? chairTitle.trim() === ""
+            ? null
+            : chairTitle.trim()
           : null,
       })
       onClose()
@@ -136,6 +144,18 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                 <p className="text-xs text-muted-foreground">
                   Manage the list under Administration → Councils.
                 </p>
+              </div>
+            )}
+            {showChairTitle && (
+              <div className="grid gap-2">
+                <Label htmlFor="edit-chair-title">Chair Title</Label>
+                <Input
+                  id="edit-chair-title"
+                  value={chairTitle}
+                  onChange={(e) => setChairTitle(e.target.value)}
+                  placeholder="e.g. Head Chair, Deputy Chair"
+                  className="h-10"
+                />
               </div>
             )}
           </div>
